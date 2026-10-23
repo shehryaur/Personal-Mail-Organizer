@@ -16,3 +16,8 @@ Set the following properties in Apps Script Settings:
 - `NIM_KEY`: NVIDIA NIM API key for LLM fallback parsing.
 - `SPREADSHEET_ID`: Target Google Sheet for the data store.
 - `PROCESSED_MESSAGE_IDS`: Internal cache tracking processed message IDs.
+
+## Setup
+1. Set the Script Properties above.
+2. Run `processInbox` once from the editor to grant permissions and check the logs (`[rule]`, `[ai]`, `[guardrail_override]` lines show who decided).
+3. Run `installTrigger` once to schedule `processInbox` every 10 minutes. `removeTrigger` stops it.
