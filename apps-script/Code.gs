@@ -43,9 +43,14 @@ const CONFIG = {
   // Stop starting new emails after this long; the rest are picked up next run
   // (Apps Script kills a run at 6 minutes)
   TIME_BUDGET_MS: 4.5 * 60 * 1000,
+  // Background run interval. Apps Script allows 1, 5, 10, 15 or 30; 5 stays far
+  // inside the daily trigger quota because runs with no new mail exit in ~1 s.
+  TRIGGER_MINUTES: 5,
+  SNIPPET_CHARS: 200,
   SHEET_HEADERS: [
     'Message ID', 'Thread ID', 'Date', 'Sender', 'Company', 'Role',
-    'Stage', 'Deadline', 'Deadline Raw', 'Action Needed', 'Confidence', 'Source', 'Application ID'
+    'Stage', 'Deadline', 'Deadline Raw', 'Action Needed', 'Confidence', 'Source', 'Application ID',
+    'Subject', 'Snippet'
   ],
   KEYWORDS: [
     'application',
@@ -246,13 +251,39 @@ const CONFIG = {
 };
 
 /**
- * Run once from the editor: installs the 10-minute trigger for processInbox.
+ * Run once from the editor before anything else. Creates the tracker Sheet and the
+ * private feed token if they don't exist yet (never overwrites), and prints what to
+ * do next. Safe to re-run.
+ */
+function setup() {
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('SPREADSHEET_ID')) {
+    const ss = SpreadsheetApp.create('Job Tracker');
+    ss.getActiveSheet().appendRow(CONFIG.SHEET_HEADERS);
+    props.setProperty('SPREADSHEET_ID', ss.getId());
+    Logger.log('Created the "Job Tracker" sheet in your Drive: ' + ss.getUrl());
+  } else {
+    Logger.log('Using the existing sheet ' + props.getProperty('SPREADSHEET_ID'));
+  }
+  if (!props.getProperty('FEED_TOKEN')) {
+    props.setProperty('FEED_TOKEN', (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, ''));
+    Logger.log('Created a private feed token.');
+  }
+  Logger.log('Feed token (paste it into the extension settings, keep it private): ' + props.getProperty('FEED_TOKEN'));
+  if (!props.getProperty('NIM_KEY')) {
+    Logger.log('Optional: add NIM_KEY in Project Settings → Script Properties for the AI fallback.');
+  }
+  Logger.log('Next: run processInbox once, then installTrigger.');
+}
+
+/**
+ * Run once from the editor: installs the background trigger for processInbox.
  * Safe to re-run; it removes any existing processInbox trigger first.
  */
 function installTrigger() {
   removeTrigger();
-  ScriptApp.newTrigger('processInbox').timeBased().everyMinutes(10).create();
-  Logger.log('Installed: processInbox every 10 minutes.');
+  ScriptApp.newTrigger('processInbox').timeBased().everyMinutes(CONFIG.TRIGGER_MINUTES).create();
+  Logger.log('Installed: processInbox every ' + CONFIG.TRIGGER_MINUTES + ' minutes.');
 }
 
 function removeTrigger() {
@@ -262,9 +293,57 @@ function removeTrigger() {
 }
 
 /**
- * Main Trigger Function: Run periodically (e.g. Every 10 minutes)
+ * Trigger entry point (every TRIGGER_MINUTES). Skips quickly when nothing new arrived.
  */
 function processInbox() {
+  return runInbox(false);
+}
+
+/**
+ * One processing pass, shared by the timer and the extension's refresh. A script
+ * lock makes sure two passes never run at once (they would label the same email
+ * twice). force=true skips the "nothing new" shortcut.
+ */
+function runInbox(force) {
+  const lock = typeof LockService !== 'undefined' ? LockService.getScriptLock() : null;
+  if (lock && !lock.tryLock(20000)) {
+    Logger.log('Another run is in progress; skipping this one.');
+    return { recorded: 0, failed: 0, skipped: 'locked' };
+  }
+  try {
+    const stamp = newestMailStamp();
+    const props = PropertiesService.getScriptProperties();
+    if (!force && stamp && stamp === props.getProperty('LAST_MAIL_STAMP')) {
+      Logger.log('Nothing new since the last run.');
+      return { recorded: 0, failed: 0, skipped: 'nothing new' };
+    }
+    const runStartedSec = Math.floor(Date.now() / 1000);
+    const summary = processNewMail(Number(props.getProperty('LAST_CLEAN_RUN')) || null);
+    // Remember this point only when everything was handled, so failures and AI
+    // hiccups are retried (and searched again) on the next run
+    if (summary.failed === 0 && summary.retry === 0 && !summary.stoppedForTime) {
+      if (stamp) props.setProperty('LAST_MAIL_STAMP', stamp);
+      props.setProperty('LAST_CLEAN_RUN', String(runStartedSec));
+    }
+    return summary;
+  } finally {
+    if (lock) lock.releaseLock();
+  }
+}
+
+/** Id + time of the newest message in the mailbox: changes whenever new mail arrives */
+function newestMailStamp() {
+  const newest = GmailApp.search('-in:chats -in:drafts', 0, 1)[0];
+  if (!newest || typeof newest.getLastMessageDate !== 'function') return null;
+  return newest.getId() + ':' + newest.getLastMessageDate().getTime();
+}
+
+/**
+ * sinceSec: when the last clean run started (epoch seconds). Searching only mail
+ * after that (minus an hour of overlap) keeps each 5-minute run small; without it
+ * every run would rescan a week of mail and exhaust the daily trigger quota.
+ */
+function processNewMail(sinceSec) {
   const started = Date.now();
   // The Sheet is the record of what's been processed: a message is done once its
   // row is written. (Gmail labels attach to whole threads, so a "seen" label would
@@ -273,16 +352,21 @@ function processInbox() {
   const ledger = openLedger();
   const myAddress = currentUserEmail();
   const days = ledger.processed.size === 0 ? CONFIG.FIRST_RUN_DAYS : CONFIG.SEARCH_DAYS;
-  const threads = searchAllThreads('newer_than:' + days + 'd -in:chats -in:drafts');
+  const searchWindow = sinceSec && ledger.processed.size > 0
+    ? 'after:' + (sinceSec - 3600)
+    : 'newer_than:' + days + 'd';
+  const threads = searchAllThreads(searchWindow + ' -in:chats -in:drafts');
 
-  let done = 0, failed = 0, skippedForTime = false;
+  let done = 0, failed = 0, retry = 0, skippedForTime = false;
   for (const thread of threads) {
     if (Date.now() - started > CONFIG.TIME_BUDGET_MS) { skippedForTime = true; break; }
     for (const message of thread.getMessages()) {
       const msgId = message.getId();
       if (ledger.processed.has(msgId)) continue;
       try {
-        if (handleMessage(thread, message, myAddress, ledger)) done++;
+        const outcome = handleMessage(thread, message, myAddress, ledger);
+        if (outcome === 'recorded') done++;
+        if (outcome === 'retry') retry++;
       } catch (err) {
         // One bad email must not stop the rest. It isn't written to the Sheet,
         // so the next run tries it again.
@@ -293,39 +377,43 @@ function processInbox() {
   }
 
   Logger.log('Run finished: ' + done + ' recorded, ' + failed + ' failed, ' + threads.length +
-    ' threads searched (' + days + 'd)' + (skippedForTime ? ', stopped early for time' : ''));
+    ' threads searched (' + searchWindow + ')' + (skippedForTime ? ', stopped early for time' : ''));
+  return { recorded: done, failed: failed, retry: retry, stoppedForTime: skippedForTime };
 }
 
 /**
- * One message: filter, classify, act, then record. Returns true if a row was written.
+ * One message: filter, classify, act, then record.
+ * Returns 'recorded', 'skipped' (not a job email / my own), or 'retry' (AI failed).
  */
 function handleMessage(thread, message, myAddress, ledger) {
   const from = message.getFrom();
   // My own replies in a recruiter thread are not job emails
-  if (myAddress && from.toLowerCase().indexOf(myAddress) !== -1) return false;
+  if (myAddress && from.toLowerCase().indexOf(myAddress) !== -1) return 'skipped';
 
   const subject = message.getSubject();
   const body = message.getPlainBody();
   const date = message.getDate();
 
   // Not job-related: nothing to record; re-checking it next run costs no AI call
-  if (!matchesPreFilter(from, subject, body, ledger.isKnown(thread.getId(), from))) return false;
+  if (!matchesPreFilter(from, subject, body, ledger.isKnown(thread.getId(), from))) return 'skipped';
 
   const analysis = analyzeEmail(from, subject, body, date);
   executeActions(thread, message, analysis, ledger.openThreads);
 
   // The AI call failed: keep it visible (done above) but don't record it,
   // so the next run gets another chance
-  if (analysis.source === 'error_fallback') return false;
+  if (analysis.source === 'error_fallback') return 'retry';
 
+  const snippet = cleanBody(body).replace(/\s+/g, ' ').trim().slice(0, CONFIG.SNIPPET_CHARS);
   ledger.append([
     message.getId(), thread.getId(), date.toISOString(), from, analysis.company, analysis.role,
     analysis.stage, analysis.deadline, analysis.deadline_raw, analysis.action_needed,
-    analysis.confidence, analysis.source, generateApplicationId(analysis.company, analysis.role)
+    analysis.confidence, analysis.source, generateApplicationId(analysis.company, analysis.role),
+    subject, snippet
   ]);
   ledger.processed.add(message.getId());
   ledger.remember(thread.getId(), from);
-  return true;
+  return 'recorded';
 }
 
 /** Search with paging, newest first, up to SEARCH_MAX_THREADS */
@@ -1025,6 +1113,10 @@ function openLedger() {
       const out = row.slice();
       out[0] = "'" + out[0];
       out[1] = "'" + out[1];
+      // Keep the deadline as text too: Sheets would turn "2026-10-27" into a date
+      // in the script's time zone, which can shift it by a day
+      const deadlineCol = CONFIG.SHEET_HEADERS.indexOf('Deadline');
+      if (out[deadlineCol]) out[deadlineCol] = "'" + out[deadlineCol];
       sheet.appendRow(out.map(v => (v === null || v === undefined ? '' : v)));
     }
   };
@@ -1035,32 +1127,46 @@ function cleanId(v) {
 }
 
 /**
- * Web App Endpoint: Publishes JSON feed for Chrome Extension or Dashboard
+ * Web app feed for the Chrome extension. Every request must carry ?token=FEED_TOKEN.
+ *   GET ?token=…               → { ok, updated_at, items: [one object per Sheet row] }
+ *   GET ?token=…&action=refresh → processes new mail right now, then the same
  */
 function doGet(e) {
+  const params = (e && e.parameter) || {};
   const props = PropertiesService.getScriptProperties();
+  const token = props.getProperty('FEED_TOKEN');
+  if (!token) return jsonOut({ ok: false, error: 'Run setup() first.' });
+  if (params.token !== token) return jsonOut({ ok: false, error: 'unauthorized' });
+
+  let refreshed = null;
+  if (params.action === 'refresh') {
+    try {
+      // Not forced: if nothing new arrived this returns in about a second
+      refreshed = runInbox(false);
+    } catch (err) {
+      refreshed = { error: String(err) };
+    }
+  }
+
   const sheetId = props.getProperty('SPREADSHEET_ID');
-  if (!sheetId) {
-    return ContentService.createTextOutput(JSON.stringify({ error: 'No SPREADSHEET_ID set' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  const ss = SpreadsheetApp.openById(sheetId);
-  const sheet = ss.getActiveSheet();
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) {
-    return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
-  }
-
-  const headers = data[0];
-  const items = data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((h, i) => {
-      obj[h.toLowerCase().replace(/\s+/g, '_')] = typeof row[i] === 'string' ? cleanId(row[i]) : row[i];
+  if (!sheetId) return jsonOut({ ok: false, error: 'No SPREADSHEET_ID set. Run setup().' });
+  const data = SpreadsheetApp.openById(sheetId).getActiveSheet().getDataRange().getValues();
+  const headers = data[0] || [];
+  const items = data.slice(1)
+    .filter(row => String(row[0]).length > 0)
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, i) => {
+        const v = row[i];
+        obj[String(h).toLowerCase().replace(/\s+/g, '_')] =
+          v instanceof Date ? v.toISOString() : typeof v === 'string' ? cleanId(v) : v;
+      });
+      return obj;
     });
-    return obj;
-  });
 
-  return ContentService.createTextOutput(JSON.stringify(items))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonOut({ ok: true, updated_at: new Date().toISOString(), refreshed: refreshed, items: items });
+}
+
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
