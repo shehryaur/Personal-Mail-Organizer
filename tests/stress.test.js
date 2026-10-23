@@ -89,6 +89,7 @@ function wrapMessage(env, t, m) {
 function wrapThread(env, t) {
   return {
     getId: () => t.id,
+    getLastMessageDate: () => new Date(lastDate(t)),
     getMessages: () => t.messages.map(m => wrapMessage(env, t, m)),
     addLabel: function (label) {
       t.labels.add(label.__name);
@@ -134,6 +135,11 @@ function makeGlobals(env) {
         const cutoff = env.now - Number(m[1]) * unit;
         threads = threads.filter(t => t.messages.some(x => x.date.getTime() > cutoff && x.date.getTime() <= env.now));
       }
+      const after = /after:(\d+)/.exec(query); // Gmail: epoch seconds
+      if (after) {
+        const cutoff = Number(after[1]) * 1000;
+        threads = threads.filter(t => t.messages.some(x => x.date.getTime() > cutoff && x.date.getTime() <= env.now));
+      }
       threads = threads.slice().sort((a, b) => lastDate(b) - lastDate(a));
       return threads.slice(start || 0, (start || 0) + (max || 500)).map(t => wrapThread(env, t));
     },
@@ -162,6 +168,12 @@ function makeGlobals(env) {
     }),
   };
   const SpreadsheetApp = {
+    create(name) {
+      const id = 'CREATED_' + (env.sheets.size + 1);
+      env.sheets.set(id, { rows: [], name });
+      const ss = SpreadsheetApp.openById(id);
+      return { getId: () => id, getUrl: () => 'https://docs.google.com/spreadsheets/d/' + id, getActiveSheet: ss.getActiveSheet };
+    },
     openById(id) {
       if (!env.sheets.has(id)) throw new Error('Exception: Unexpected error while getting the method or property openById on object SpreadsheetApp.');
       const s = env.sheets.get(id);
@@ -226,7 +238,30 @@ function makeGlobals(env) {
   const Logger = { log: s => env.logs.push(String(s)) };
   // The account running the script (the fake user's own sent replies come from here)
   const Session = { getEffectiveUser: () => ({ getEmail: () => 'sam.lee@gmail.com' }) };
-  return { GmailApp, PropertiesService, SpreadsheetApp, UrlFetchApp, ContentService, ScriptApp, Logger, Session, console };
+  // One script-wide lock; env.lockHeld simulates another run holding it
+  const LockService = {
+    getScriptLock: () => ({
+      tryLock: () => {
+        if (env.lockHeld) return false;
+        env.lockHeld = true;
+        return true;
+      },
+      releaseLock: () => { env.lockHeld = false; },
+    }),
+  };
+  let uuid = 0;
+  const Utilities = { getUuid: () => '00000000-0000-4000-8000-' + String(++uuid).padStart(12, '0') };
+  // The script's clock is the fake mailbox's clock (env.now), not the machine's
+  class FakeDate extends Date {
+    constructor(...args) {
+      if (args.length) super(...args);
+      else super(env.now);
+    }
+    static now() {
+      return env.now;
+    }
+  }
+  return { GmailApp, PropertiesService, SpreadsheetApp, UrlFetchApp, ContentService, ScriptApp, Logger, Session, LockService, Utilities, Date: FakeDate, console };
 }
 
 function load(env) {
@@ -625,21 +660,74 @@ scenario('9. Sheet and doGet', () => {
   const piThread = env.threads[env.threads.length - 1];
   check(headerErr && /header/i.test(headerErr.message) && piThread.labels.size === 0 && rows(env).length === 1,
     'sheet without the tracker header stops loudly, touches no mail', `err=${headerErr && headerErr.message}; labels=${piThread.labels.size}; rows=${rows(env).length}`);
-  // doGet shape
-  env = makeEnv();
+  // doGet: token-protected feed { ok, updated_at, items }
+  env = makeEnv({ props: { FEED_TOKEN: 'secret-token' } });
   addThread(env, [T.A('Rho', BASE_NOW - HOUR)]);
   ctx = load(env);
-  const empty = ctx.doGet({});
-  check(empty.getContent() === '[]' && empty.getMimeType() === 'application/json', 'doGet on empty sheet returns [] JSON', empty.getContent());
+  const empty = JSON.parse(ctx.doGet({ parameter: { token: 'secret-token' } }).getContent());
+  check(empty.ok === true && Array.isArray(empty.items) && empty.items.length === 0, 'doGet on empty sheet returns ok with no items', JSON.stringify(empty));
   run(env, ctx);
-  const items = JSON.parse(ctx.doGet({}).getContent());
-  const want = ['message_id', 'thread_id', 'date', 'sender', 'company', 'role', 'stage', 'deadline', 'deadline_raw', 'action_needed', 'confidence', 'source', 'application_id'];
-  check(Array.isArray(items) && items.length === 1 && want.every(k => k in items[0]), 'doGet item keys', JSON.stringify(Object.keys(items[0] || {})));
-  note(`doGet item: ${JSON.stringify(items[0])}`);
-  note('doGet has no archive/inbox/starred state, no ghosting fields, returns every row (duplicates included), no paging');
-  const noId = makeEnv({ sheet: false });
-  const r = JSON.parse(load(noId).doGet({}).getContent());
-  note(`doGet without SPREADSHEET_ID returns ${JSON.stringify(r)} (object, not array; client must handle both shapes)`);
+  const feed = JSON.parse(ctx.doGet({ parameter: { token: 'secret-token' } }).getContent());
+  const want = ['message_id', 'thread_id', 'date', 'sender', 'company', 'role', 'stage', 'deadline', 'deadline_raw', 'action_needed', 'confidence', 'source', 'application_id', 'subject', 'snippet'];
+  check(feed.ok && feed.items.length === 1 && want.every(k => k in feed.items[0]), 'doGet item keys (incl. subject and snippet)', JSON.stringify(Object.keys(feed.items[0] || {})));
+  check(!/^'/.test(feed.items[0].message_id) && feed.items[0].snippet.length > 0, 'feed ids are clean and snippet is filled', `${feed.items[0].message_id} / ${feed.items[0].snippet}`);
+  note(`doGet item: ${JSON.stringify(feed.items[0])}`);
+  const noToken = JSON.parse(ctx.doGet({ parameter: {} }).getContent());
+  const badToken = JSON.parse(ctx.doGet({ parameter: { token: 'guess' } }).getContent());
+  check(!noToken.ok && !badToken.ok && !('items' in badToken), 'feed refuses a missing or wrong token', JSON.stringify([noToken, badToken]));
+  const noSetup = JSON.parse(load(makeEnv()).doGet({ parameter: { token: 'x' } }).getContent());
+  check(!noSetup.ok && /setup/.test(noSetup.error), 'feed says to run setup() when no token exists', JSON.stringify(noSetup));
+});
+
+scenario('13. live sync: setup, quick skip, refresh, lock', () => {
+  // setup() creates the sheet and token once and never overwrites them
+  const env0 = makeEnv({ sheet: false });
+  const c0 = load(env0);
+  c0.setup();
+  const sheetId = env0.props.get('SPREADSHEET_ID');
+  const token = env0.props.get('FEED_TOKEN');
+  c0.setup();
+  check(sheetId && env0.sheets.get(sheetId).rows[0][0] === 'Message ID' && token && token.length >= 32 &&
+    env0.props.get('SPREADSHEET_ID') === sheetId && env0.props.get('FEED_TOKEN') === token,
+    'setup() creates the sheet + token once, re-running keeps them', `sheet=${sheetId} tokenLen=${token && token.length}`);
+
+  // a run with no new mail exits before reading any message
+  const env = makeEnv({ props: { FEED_TOKEN: 'tok' } });
+  const ctx = load(env);
+  addThread(env, [T.A('Sigma', env.now - HOUR)]);
+  run(env, ctx);
+  const rows1 = dataRows(env).length;
+  const fetches1 = env.fetches.length;
+  env.logs.length = 0;
+  run(env, ctx);
+  check(env.logs.some(l => /Nothing new/.test(l)) && dataRows(env).length === rows1 && env.fetches.length === fetches1,
+    'run with no new mail skips quickly', env.logs.join(' | '));
+
+  // new mail arrives: the next timed run processes it, searching only recent mail
+  env.now += 5 * MIN;
+  addThread(env, [T.I('Tau', env.now - MIN)]);
+  env.logs.length = 0;
+  run(env, ctx);
+  check(dataRows(env).length === rows1 + 1, 'new mail is picked up by the next timed run', `rows ${rows1} -> ${dataRows(env).length}`);
+  check(env.logs.some(l => /threads searched \(after:\d+\)/.test(l)), 'later runs search only since the last run (quota-safe)', env.logs.filter(l => /Run finished/.test(l)).join(' | '));
+
+  // refresh from the extension processes immediately and returns the items
+  env.now += MIN;
+  addThread(env, [T.A('Upsilon', env.now - 10 * 1000)]);
+  const res = JSON.parse(ctx.doGet({ parameter: { token: 'tok', action: 'refresh' } }).getContent());
+  check(res.ok && res.refreshed && res.refreshed.recorded === 1 && res.items.length === rows1 + 2,
+    'refresh=1 processes new mail now and returns it', JSON.stringify(res.refreshed) + ' items=' + (res.items && res.items.length));
+
+  // a second run while one holds the lock does nothing
+  env.now += MIN;
+  addThread(env, [T.I('Phi', env.now - 10 * 1000)]);
+  env.lockHeld = true;
+  const lockedErr = run(env, ctx);
+  const rowsLocked = dataRows(env).length;
+  env.lockHeld = false;
+  run(env, ctx);
+  check(!lockedErr && rowsLocked === rows1 + 2 && dataRows(env).length === rows1 + 3,
+    'overlapping run is skipped by the lock, next run catches up', `locked run rows=${rowsLocked}, after=${dataRows(env).length}`);
 });
 
 scenario('10. installTrigger twice', () => {
@@ -648,7 +736,7 @@ scenario('10. installTrigger twice', () => {
   ctx.installTrigger();
   ctx.installTrigger();
   const t = env.triggers.filter(x => x.fn === 'processInbox');
-  check(t.length === 1 && t[0].every === 10, 'exactly one 10-minute processInbox trigger', `${t.length} trigger(s)`);
+  check(t.length === 1 && t[0].every === 5, 'exactly one 5-minute processInbox trigger', `${t.length} trigger(s), every ${t[0] && t[0].every} min`);
   ctx.removeTrigger();
   check(env.triggers.length === 0, 'removeTrigger removes it', `${env.triggers.length} left`);
 });
