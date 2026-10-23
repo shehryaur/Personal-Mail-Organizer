@@ -1,5 +1,12 @@
-// Simulated current time for the benchmark: October 23, 2026 08:30:00 UTC
-export const SIMULATED_NOW = new Date('2026-10-23T08:30:00Z').getTime();
+// "Now" for countdowns and ghosting. The demo freezes it at October 23, 2026
+// 08:30 UTC so the sample data always looks the same; the Gmail extension build
+// (mode "extension") uses the real time and moves it forward on every refresh.
+const IS_EXTENSION = import.meta.env.MODE === 'extension';
+export let SIMULATED_NOW = IS_EXTENSION ? Date.now() : new Date('2026-10-23T08:30:00Z').getTime();
+
+export function tickNow(): void {
+  if (IS_EXTENSION) SIMULATED_NOW = Date.now();
+}
 
 export function getCountdown(targetIso: string | null): { text: string; isUrgent: boolean; isWarning: boolean; isPassed: boolean } {
   if (!targetIso) return { text: 'No deadline', isUrgent: false, isWarning: false, isPassed: false };
