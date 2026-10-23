@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Scan all of src/ for class names, also when the extension build's root is src/extension */
+@source "./";
 
 @layer base {
   * {
