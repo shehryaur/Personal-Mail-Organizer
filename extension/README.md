@@ -1,14 +1,17 @@
-# Chrome Extension: Job Tracker Banner (Manifest V3)
+# Chrome extension: Jobs Board in Gmail (Manifest V3 + InboxSDK)
 
-Part 2 of the Job Application Inbox Tracker.
+Adds **Jobs Board** to Gmail's left sidebar. Clicking it shows the board (one row per
+application, stages, deadlines, ghosted follow-ups) in Gmail's main area, built from
+your own tracker sheet. Also adds a **Job deadlines** section at the top of the inbox.
 
-## Features
-- Injects a zero-latency top action banner into the native Gmail interface.
-- Displays ticking relative deadlines (e.g. Palantir video deadline countdown, Stripe availability requests).
-- Direct one-click deep link to the high-density Jobs Workbench.
+Setup steps: see [`../SETUP.md`](../SETUP.md).
 
-## How to Test Locally
-1. Open Google Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** (top right toggle).
-3. Click **Load unpacked** and select the `extension/` folder.
-4. Refresh your Gmail tab (`mail.google.com`).
+## How it's put together
+- `manifest.json`: permissions are Gmail, your Apps Script web app, `storage` and `scripting` (InboxSDK needs it to load its page script).
+- Source lives in `demo/src/extension/` so it shares the board components with the demo:
+  - `content.ts`: runs in Gmail. InboxSDK sidebar item and route, inbox section, opens real threads, refreshes when new mail appears.
+  - `BoardApp.tsx` / `board.html`: the board, as an extension page shown in an iframe (keeps Gmail's styles and ours apart).
+  - `options.tsx` / `options.html`: web app URL, feed token, InboxSDK App ID (stored in this browser only).
+  - `background.ts`: fetches the private feed (`?token=…`, `&action=refresh`) and caches it.
+  - `feed.ts`: turns sheet rows into applications (one per company) and board sections.
+- Build: `cd demo && npm run build:extension` → `extension/dist` (load that folder unpacked). `dist/` is not committed.
