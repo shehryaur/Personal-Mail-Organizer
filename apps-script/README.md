@@ -12,9 +12,12 @@ Part 1 of the Job Application Inbox Tracker.
    - Relative deadlines ("within 7 days of receiving this email") are calculated strictly against the email's arrival timestamp.
 
 ## Configuration (Script Properties)
-Set the following properties in Apps Script Settings:
-- `NIM_KEY`: NVIDIA NIM API key for LLM fallback parsing.
-- `SPREADSHEET_ID` (required): an empty Google Sheet. It is also the record of what's been processed: an email counts as done once its row is written, so nothing is lost if a run fails halfway. Without it the script stops before touching any mail.
+`setup()` creates the first two for you:
+- `SPREADSHEET_ID` (required): the tracker sheet. It is also the record of what's been processed: an email counts as done once its row is written, so nothing is lost if a run fails halfway. Without it the script stops before touching any mail.
+- `FEED_TOKEN` (required for the extension): a random secret; the web app feed answers only requests carrying it.
+- `NIM_KEY` (optional, you add it): NVIDIA NIM API key for the AI fallback.
+
+Internal, written by the script: `LAST_MAIL_STAMP`, `LAST_CLEAN_RUN` (so runs with no new mail exit in about a second and later runs only search mail since the last run).
 
 (`PROCESSED_MESSAGE_IDS` from earlier versions is no longer used and can be deleted.)
 
@@ -32,9 +35,12 @@ $env:NIM_KEY = "nvapi-..."; node tests/holdout.test.js
 The variable lasts only for that terminal window.
 
 ## Setup
-1. Set the Script Properties above.
-2. Run `processInbox` once from the editor to grant permissions and check the logs (`[rule]`, `[ai]`, `[guardrail_override]` lines show who decided).
-3. Run `installTrigger` once to schedule `processInbox` every 10 minutes. `removeTrigger` stops it.
+Full click-by-click guide, including the web app and the Chrome extension: [`../SETUP.md`](../SETUP.md). In short:
+1. Run `setup()` once (creates the sheet and the feed token, prints the token).
+2. Add `NIM_KEY` if you want the AI fallback.
+3. Run `processInbox` once and check the log (`[rule]`, `[ai]`, `[guardrail_override]` lines show who decided).
+4. Run `installTrigger` to process new mail every 5 minutes. `removeTrigger` stops it.
+5. Deploy as a web app (execute as Me, access Anyone) for the extension. `doGet(?token=…)` returns the sheet as JSON; `&action=refresh` processes new mail first.
 
 ## Tests
 From the repo root, with Google services stubbed out:
