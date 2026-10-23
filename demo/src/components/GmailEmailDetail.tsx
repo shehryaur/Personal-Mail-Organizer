@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import type { Email, DeterministicRule } from '../types';
+import type { Email, DeterministicRule, Application } from '../types';
 import { getCountdown, formatNiceDate } from '../utils/dateUtils';
+import { ApplicationStepper } from './ApplicationStepper';
 import {
   ArrowLeft,
   Star,
@@ -12,10 +13,12 @@ import {
   Forward,
   CheckCircle2,
   Sliders,
+  Calendar,
 } from 'lucide-react';
 
 interface GmailEmailDetailProps {
   email: Email;
+  application?: Application;
   onBack: () => void;
   onToggleStar: () => void;
   onAddRule: (rule: DeterministicRule) => void;
@@ -23,6 +26,7 @@ interface GmailEmailDetailProps {
 
 export const GmailEmailDetail: React.FC<GmailEmailDetailProps> = ({
   email,
+  application,
   onBack,
   onToggleStar,
   onAddRule,
@@ -55,15 +59,19 @@ export const GmailEmailDetail: React.FC<GmailEmailDetailProps> = ({
     setTimeout(() => setRuleToast(null), 3500);
   };
 
+  const appliedDate = application?.emails[application.emails.length - 1]?.receivedAt
+    ? formatNiceDate(application.emails[application.emails.length - 1].receivedAt)
+    : formatNiceDate(email.receivedAt);
+
   return (
     <div className="flex-1 bg-white flex flex-col h-full overflow-hidden select-text">
-      {/* Detail Top Navigation Toolbar */}
-      <div className="h-12 px-4 border-b border-[#f2f4f8] flex items-center justify-between shrink-0 bg-[#fbfcfe]">
+      {/* Top Navigation Toolbar */}
+      <div className="h-12 px-6 border-b border-[#f2f4f8] flex items-center justify-between shrink-0 bg-[#fbfcfe]">
         <div className="flex items-center gap-2">
           <button
             onClick={onBack}
             className="p-2 rounded-full hover:bg-[#eaebef] text-[#444746] transition-colors cursor-pointer"
-            title="Back to list"
+            title="Back to inbox"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -91,8 +99,8 @@ export const GmailEmailDetail: React.FC<GmailEmailDetailProps> = ({
         </div>
       </div>
 
-      {/* Main Email Body & AI Triage Inspector Card */}
-      <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full space-y-6">
+      {/* Main Container */}
+      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-4xl mx-auto w-full space-y-6">
         {/* Rule Saved Toast */}
         {ruleToast && (
           <div className="bg-[#e6f4ea] border border-[#ceead6] text-[#137333] px-4 py-2.5 rounded-lg flex items-center gap-2 text-xs font-medium animate-fadeIn">
@@ -101,93 +109,106 @@ export const GmailEmailDetail: React.FC<GmailEmailDetailProps> = ({
           </div>
         )}
 
-        {/* Minimalist "AI Reads, Code Decides" Triage Card */}
-        <div className="bg-[#f8fafd] border border-[#d3e3fd] rounded-xl p-4 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between">
+        {/* 1. Logistics-Style Pipeline Stepper (Checkpoint Flow) */}
+        <ApplicationStepper
+          stage={email.stage}
+          appliedDate={appliedDate}
+          currentEventDate={formatNiceDate(email.receivedAt)}
+          isGuardrailOverride={isGuardrailOverride}
+        />
+
+        {/* 2. Sleek "AI Reads, Code Decides" Triage Card */}
+        <div className="bg-[#f8fafd] border border-[#d3e3fd] rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-[#e0e2ec]/60 pb-3">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-[#0b57d0]" />
               <span className="text-xs font-semibold text-[#041e49]">
-                Triage Card: AI Reads · Code Decides
+                Triage Decision Engine: AI Reads · Code Decides
               </span>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#eaf1fb] text-[#0b57d0]">
-              {(email.confidence * 100).toFixed(0)}% Confidence
+            <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-[#eaf1fb] text-[#0b57d0] border border-[#c2e7ff] font-medium">
+              {(email.confidence * 100).toFixed(0)}% Certainty
             </span>
           </div>
 
-          {/* Key Parameters */}
+          {/* Three Metric Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <div className="bg-white p-2.5 rounded-lg border border-[#e0e2ec]">
-              <span className="text-[10px] uppercase text-[#747775] font-semibold block mb-0.5">
-                Stage Classification
+            <div className="bg-white p-3 rounded-xl border border-[#e0e2ec]">
+              <span className="text-[10px] uppercase text-[#747775] font-semibold block mb-1">
+                Extracted Stage
               </span>
-              <span className="font-semibold text-[#1f1f1f] capitalize">{email.stage}</span>
-            </div>
-
-            <div className="bg-white p-2.5 rounded-lg border border-[#e0e2ec]">
-              <span className="text-[10px] uppercase text-[#747775] font-semibold block mb-0.5">
-                Action Taken by Code
-              </span>
-              <span className="font-semibold text-[#0b57d0]">
-                {email.actionNeeded ? 'Starred & Kept in Inbox' : 'Archived (No Action Required)'}
+              <span className="font-semibold text-sm text-[#1f1f1f] capitalize">
+                {email.stage}
               </span>
             </div>
 
-            <div className="bg-white p-2.5 rounded-lg border border-[#e0e2ec]">
-              <span className="text-[10px] uppercase text-[#747775] font-semibold block mb-0.5">
-                Relative Deadline
+            <div className="bg-white p-3 rounded-xl border border-[#e0e2ec]">
+              <span className="text-[10px] uppercase text-[#747775] font-semibold block mb-1">
+                Deterministic Action
+              </span>
+              <span className="font-semibold text-sm text-[#0b57d0]">
+                {email.actionNeeded ? 'Starred & Kept in Inbox' : 'Auto-Archived'}
+              </span>
+            </div>
+
+            <div className="bg-white p-3 rounded-xl border border-[#e0e2ec]">
+              <span className="text-[10px] uppercase text-[#747775] font-semibold block mb-1">
+                Relative Countdown
               </span>
               {countdown && !countdown.isPassed ? (
-                <div className="flex items-center gap-1 font-semibold text-[#b06000]">
-                  <Clock className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-1.5 font-bold text-sm text-[#b06000]">
+                  <Clock className="w-4 h-4 text-[#b06000]" />
                   <span>{countdown.text}</span>
                 </div>
               ) : (
-                <span className="text-[#747775]">No deadline detected</span>
+                <span className="text-sm text-[#747775]">No pending deadline</span>
               )}
             </div>
           </div>
 
-          {/* Mathematical Resolution for Relative Dates */}
+          {/* Relative Deadline Mathematical Resolution */}
           {email.deadlineRaw && (
-            <div className="bg-white p-2.5 rounded-lg border border-[#fce8b2] text-xs font-mono text-[#444746] flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <span className="text-[#b06000] font-semibold">"{email.deadlineRaw}"</span>
-                <span className="text-[#747775]">
-                  {' '}
-                  resolved from email arrival ({formatNiceDate(email.receivedAt)}) →{' '}
+            <div className="bg-white p-3.5 rounded-xl border border-[#fce8b2] text-xs font-mono text-[#444746] flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[#b06000]" />
+                <span>
+                  <strong className="text-[#b06000]">"{email.deadlineRaw}"</strong> anchored to{' '}
+                  <span className="text-[#1f1f1f]">{formatNiceDate(email.receivedAt)}</span>
                 </span>
-                <strong className="text-[#137333] font-semibold">
-                  Due {formatNiceDate(email.deadlineResolved || '')}
-                </strong>
+              </div>
+              <div className="font-semibold text-[#137333] bg-[#e6f4ea] px-2.5 py-1 rounded-md border border-[#ceead6]">
+                Target: {formatNiceDate(email.deadlineResolved || '')}
               </div>
             </div>
           )}
 
-          {/* Safety Guardrail Alert (Stripe Example) */}
+          {/* Safety Guardrail Alert Box (Stripe Demonstration) */}
           {isGuardrailOverride && (
-            <div className="bg-[#fce8e6] border border-[#f5c2c7] p-3 rounded-lg text-xs text-[#c5221f] space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold">
+            <div className="bg-[#fce8e6] border border-[#f5c2c7] p-3.5 rounded-xl text-xs space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-[#c5221f]">
                 <ShieldAlert className="w-4 h-4 text-[#c5221f]" />
-                <span>Deterministic Guardrail Overrode AI</span>
+                <span>Safety Guardrail Caught Probabilistic Model Error</span>
               </div>
-              <p className="text-[11px] leading-relaxed text-[#5e5e5e]">
+              <p className="text-[11px] leading-relaxed text-[#5e5e5e] font-sans">
                 {email.guardrailNote}
               </p>
             </div>
           )}
 
-          {/* Quick Guardrail Synthesizer Toggle */}
+          {/* Bottom Rule Inspector & Synthesizer */}
           <div className="pt-2 border-t border-[#e0e2ec]/60 flex items-center justify-between text-xs">
             <span className="text-[#747775]">
-              Rule: <code className="text-[#1f1f1f] bg-white px-1.5 py-0.5 rounded border border-[#dadce0]">{email.ruleMatched}</code>
+              Matched Rule:{' '}
+              <code className="text-[#1f1f1f] bg-white px-2 py-0.5 rounded border border-[#dadce0] font-mono">
+                {email.ruleMatched}
+              </code>
             </span>
             <button
               onClick={() => setShowRuleForm(!showRuleForm)}
               className="text-[#0b57d0] hover:underline flex items-center gap-1 font-medium cursor-pointer"
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>{showRuleForm ? 'Close Rule' : 'Add Permanent Rule'}</span>
+              <span>{showRuleForm ? 'Close Rule' : 'Save Permanent Rule'}</span>
             </button>
           </div>
 
@@ -198,11 +219,11 @@ export const GmailEmailDetail: React.FC<GmailEmailDetailProps> = ({
                 value={ruleInput}
                 onChange={(e) => setRuleInput(e.target.value)}
                 placeholder="e.g. domain:@company.com"
-                className="flex-1 px-3 py-1.5 bg-white border border-[#c2e7ff] rounded text-xs font-mono text-[#1f1f1f] outline-none focus:ring-1 focus:ring-[#0b57d0]"
+                className="flex-1 px-3 py-1.5 bg-white border border-[#c2e7ff] rounded-lg text-xs font-mono text-[#1f1f1f] outline-none focus:ring-2 focus:ring-[#0b57d0]"
               />
               <button
                 type="submit"
-                className="px-3 py-1.5 bg-[#0b57d0] text-white rounded text-xs font-medium cursor-pointer hover:bg-[#0842a0] transition-colors"
+                className="px-4 py-1.5 bg-[#0b57d0] text-white rounded-lg text-xs font-medium cursor-pointer hover:bg-[#0842a0] transition-colors shadow-2xs"
               >
                 Save Guardrail
               </button>
@@ -210,13 +231,13 @@ export const GmailEmailDetail: React.FC<GmailEmailDetailProps> = ({
           )}
         </div>
 
-        {/* Email Header Info */}
+        {/* 3. Real Email Header Info */}
         <div className="border-b border-[#f2f4f8] pb-4">
           <h2 className="text-xl font-normal text-[#1f1f1f] mb-4">{email.subject}</h2>
 
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#e8def8] text-[#4a4458] flex items-center justify-center font-semibold text-base">
+              <div className="w-10 h-10 rounded-full bg-[#c2e7ff] text-[#001d35] flex items-center justify-center font-bold text-base shadow-2xs">
                 {email.company.charAt(0)}
               </div>
               <div>

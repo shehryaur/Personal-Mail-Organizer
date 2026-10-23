@@ -28,7 +28,7 @@ export const GmailEmailRow: React.FC<GmailEmailRowProps> = ({
   return (
     <div
       onClick={onSelect}
-      className={`group flex items-center gap-3 px-4 py-2.5 border-b border-[#f2f4f8] cursor-pointer transition-colors text-sm select-none ${
+      className={`email-row-item group flex items-center gap-3 px-6 py-3 border-b border-[#f2f4f8] cursor-pointer transition-colors text-sm select-none ${
         isSelected
           ? 'bg-[#c2e7ff]/30 hover:bg-[#c2e7ff]/40'
           : email.isArchived
