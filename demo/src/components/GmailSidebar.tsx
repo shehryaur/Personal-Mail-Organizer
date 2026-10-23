@@ -1,22 +1,37 @@
 import React from 'react';
-import {
-  Inbox,
-  Star,
-  Clock,
-  Send,
-  FileText,
-  Briefcase,
-  ChevronRight,
-  Pencil,
-  AlertCircle,
-} from 'lucide-react';
+import { Icon } from './Icon';
+
+type Tab = 'jobs' | 'inbox' | 'starred' | 'review';
 
 interface GmailSidebarProps {
-  currentTab: 'jobs' | 'inbox' | 'starred' | 'review';
-  onTabChange: (tab: 'jobs' | 'inbox' | 'starred' | 'review') => void;
+  currentTab: Tab;
+  onTabChange: (tab: Tab) => void;
   urgentCount: number;
   totalJobsCount: number;
 }
+
+// Gmail nav item: 32px pill, icon + label + count
+const NavItem: React.FC<{
+  icon: string;
+  label: string;
+  count?: number;
+  active?: boolean;
+  bold?: boolean;
+  onClick?: () => void;
+}> = ({ icon, label, count, active, bold, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`w-full h-8 flex items-center pl-[26px] pr-3 rounded-full text-sm cursor-pointer ${
+      active ? 'bg-[#d3e3fd] text-[#001d35] font-bold' : `text-[#1f1f1f] hover:bg-[#e8eaed] ${bold ? 'font-bold' : ''}`
+    }`}
+  >
+    <Icon name={icon} size={20} fill={active} className="mr-[18px]" />
+    <span className="flex-1 text-left truncate">{label}</span>
+    {count !== undefined && count > 0 && (
+      <span className={`text-xs ${active || bold ? 'font-bold' : ''}`}>{count.toLocaleString()}</span>
+    )}
+  </button>
+);
 
 export const GmailSidebar: React.FC<GmailSidebarProps> = ({
   currentTab,
@@ -25,120 +40,40 @@ export const GmailSidebar: React.FC<GmailSidebarProps> = ({
   totalJobsCount,
 }) => {
   return (
-    <aside className="w-64 bg-[#f6f8fc] flex flex-col h-full py-3 px-3 select-none shrink-0 overflow-y-auto">
-      {/* Compose Pill Button */}
-      <button className="h-14 w-36 bg-[#c2e7ff] hover:bg-[#b3ddff] hover:shadow-md text-[#001d35] rounded-2xl flex items-center justify-center gap-3 text-sm font-medium transition-all mb-4 shadow-xs cursor-pointer">
-        <Pencil className="w-5 h-5 text-[#001d35]" />
-        <span>Compose</span>
+    <aside className="w-[256px] bg-[#f6f8fc] flex flex-col h-full pr-4 select-none shrink-0 overflow-y-auto">
+      <button className="ml-2 mt-2 mb-4 h-14 min-w-[138px] self-start pl-4 pr-6 bg-[#c2e7ff] hover:shadow-[0_1px_3px_0_rgba(60,64,67,.3),0_4px_8px_3px_rgba(60,64,67,.15)] text-[#001d35] rounded-2xl flex items-center gap-3 text-sm font-medium font-gs cursor-pointer">
+        <Icon name="edit" size={24} />
+        Compose
       </button>
 
-      {/* Main Mail Folders */}
-      <nav className="space-y-0.5 text-sm">
-        {/* The Dedicated Jobs Triage Tab (Palantir Show & Tell Feature) */}
-        <button
+      <nav>
+        <NavItem
+          icon="work"
+          label="Jobs Board"
+          count={urgentCount}
+          bold
+          active={currentTab === 'jobs'}
           onClick={() => onTabChange('jobs')}
-          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full font-medium transition-colors cursor-pointer ${
-            currentTab === 'jobs'
-              ? 'bg-[#d3e3fd] text-[#041e49] font-semibold'
-              : 'text-[#444746] hover:bg-[#eaebef]'
-          }`}
-        >
-          <div className="flex items-center gap-4">
-            <Briefcase className="w-5 h-5 text-[#0b57d0]" />
-            <span>Jobs Board</span>
-          </div>
-          {urgentCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#b3261e] text-white">
-              {urgentCount}
-            </span>
-          )}
-        </button>
-
-        <button
+        />
+        <NavItem
+          icon="inbox"
+          label="Inbox"
+          count={totalJobsCount}
+          active={currentTab === 'inbox'}
           onClick={() => onTabChange('inbox')}
-          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full font-medium transition-colors cursor-pointer ${
-            currentTab === 'inbox'
-              ? 'bg-[#d3e3fd] text-[#041e49] font-semibold'
-              : 'text-[#444746] hover:bg-[#eaebef]'
-          }`}
-        >
-          <div className="flex items-center gap-4">
-            <Inbox className="w-5 h-5" />
-            <span>Inbox</span>
-          </div>
-          <span className="text-xs font-mono text-[#444746]">{totalJobsCount}</span>
-        </button>
-
-        <button
-          onClick={() => onTabChange('starred')}
-          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full font-medium transition-colors cursor-pointer ${
-            currentTab === 'starred'
-              ? 'bg-[#d3e3fd] text-[#041e49] font-semibold'
-              : 'text-[#444746] hover:bg-[#eaebef]'
-          }`}
-        >
-          <div className="flex items-center gap-4">
-            <Star className="w-5 h-5" />
-            <span>Starred</span>
-          </div>
-        </button>
-
-        <button
+        />
+        <NavItem icon="star" label="Starred" active={currentTab === 'starred'} onClick={() => onTabChange('starred')} />
+        <NavItem
+          icon="error"
+          label="Needs review"
+          count={1}
+          active={currentTab === 'review'}
           onClick={() => onTabChange('review')}
-          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-full font-medium transition-colors cursor-pointer ${
-            currentTab === 'review'
-              ? 'bg-[#d3e3fd] text-[#041e49] font-semibold'
-              : 'text-[#444746] hover:bg-[#eaebef]'
-          }`}
-        >
-          <div className="flex items-center gap-4">
-            <AlertCircle className="w-5 h-5 text-amber-600" />
-            <span>Jobs/Review</span>
-          </div>
-          <span className="text-xs font-mono text-amber-700 font-semibold">1</span>
-        </button>
-
-        <div className="w-full flex items-center gap-4 px-4 py-2.5 text-[#444746] rounded-full hover:bg-[#eaebef] cursor-pointer">
-          <Clock className="w-5 h-5" />
-          <span>Snoozed</span>
-        </div>
-
-        <div className="w-full flex items-center gap-4 px-4 py-2.5 text-[#444746] rounded-full hover:bg-[#eaebef] cursor-pointer">
-          <Send className="w-5 h-5" />
-          <span>Sent</span>
-        </div>
-
-        <div className="w-full flex items-center gap-4 px-4 py-2.5 text-[#444746] rounded-full hover:bg-[#eaebef] cursor-pointer">
-          <FileText className="w-5 h-5" />
-          <span>Drafts</span>
-        </div>
+        />
+        <NavItem icon="schedule" label="Snoozed" />
+        <NavItem icon="send" label="Sent" />
+        <NavItem icon="draft" label="Drafts" />
       </nav>
-
-      {/* Gmail Labels Section */}
-      <div className="mt-6 pt-4 border-t border-[#e0e2ec]">
-        <div className="flex items-center justify-between px-4 text-xs font-medium text-[#444746] mb-2 uppercase tracking-wider">
-          <span>Triage Labels</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </div>
-        <div className="space-y-1 text-xs text-[#444746]">
-          <div className="flex items-center gap-3 px-4 py-1.5 rounded-full hover:bg-[#eaebef] cursor-pointer">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-            <span>Jobs/Assessment</span>
-          </div>
-          <div className="flex items-center gap-3 px-4 py-1.5 rounded-full hover:bg-[#eaebef] cursor-pointer">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-            <span>Jobs/Interview</span>
-          </div>
-          <div className="flex items-center gap-3 px-4 py-1.5 rounded-full hover:bg-[#eaebef] cursor-pointer">
-            <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-            <span>Jobs/Applied</span>
-          </div>
-          <div className="flex items-center gap-3 px-4 py-1.5 rounded-full hover:bg-[#eaebef] cursor-pointer">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span>Jobs/Offer</span>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 };

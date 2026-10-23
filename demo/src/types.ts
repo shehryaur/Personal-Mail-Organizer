@@ -30,6 +30,7 @@ export interface Email {
 export interface Application {
   id: string;
   company: string;
+  domain: string; // for the logo
   role: string;
   stage: 'needs_action' | 'in_progress' | 'ghosted' | 'closed';
   currentStatus: string;

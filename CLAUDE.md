@@ -52,7 +52,7 @@ Gmail ──(Apps Script, every 10 min)──> rules → NIM fallback → labels
 4. **Actions (code decides):**
    - Labels: `Jobs/Applied`, `Jobs/Assessment`, `Jobs/Interview`, `Jobs/Rejected`, `Jobs/Offer`, `Jobs/Review`
    - `action_needed` → keep in inbox + star
-   - rejected/applied with confidence ≥ 0.85 (or matched by rule) → archive
+   - archive only plain receipts/rejections where every check passes: decided by a rule (never AI alone), confidence ≥ 0.95, no deadline or request, no link to act on (booking, test platform, form), under 3,000 chars, from an ATS or automated company sender (not a person). Anything else stays in the inbox.
    - confidence < 0.85 → stay in inbox, label `Jobs/Review`
 5. **Write to Google Sheet:** one row per email: message_id, thread_id, date, sender, company, role, stage, deadline, action_needed, confidence, source (rule|ai), application_id.
 6. Time-driven trigger every 10 minutes.
@@ -61,7 +61,7 @@ Gmail ──(Apps Script, every 10 min)──> rules → NIM fallback → labels
 1. **Core flow:** filter → rules → NIM → labels/archive/star → Sheet. *Must work before anything else.*
 2. **Relative deadline resolution:** turn "within 7 days of receiving this email", "by end of week", "in the next 48 hours" into an actual date using the email's received timestamp. Show a countdown. (Demo hook: Palantir's own email.)
 3. **Merge emails into one application (entity resolution):** link emails from ATS no-reply, a recruiter's personal address and calendar invites into one `application_id` by company name normalization, sender domain and role. One application = one timeline.
-4. **Ghosting detection:** no new email for an application in 21+ days after applied/interview → mark "likely ghosted" and suggest a follow-up.
+4. **Ghosting detection:** application still at "applied" with no reply in 60+ days → mark "ghosted" and suggest a follow-up.
 5. **Learn from corrections:** when I move/relabel an application in the board, save that as a rule (e.g. sender domain → company, phrase → stage) so the same mistake doesn't repeat.
 
 If time runs out, unfinished features go in the video's "with more time" section.

@@ -67,7 +67,7 @@ flowchart TD
 2. **Center: Application Entity Board (Ontology Model):** Groups fragmented emails (ATS confirmation + recruiter DM + take-home prompt) into **one single company entity** with an interactive chronological event timeline.
    - **Needs Action (Urgent):** Sorted strictly by relative deadline countdowns.
    - **In Progress:** Active interview and take-home loops.
-   - **Likely Ghosted ($>21$ Days):** Automatically detects stale pipelines and provides a 1-click **Contextual Nudge** draft.
+   - **Ghosted (60+ days with no reply after applying):** Automatically detects stale pipelines and provides a 1-click **Contextual Nudge** draft.
    - **Closed & Archived:** Rejections auto-archived with zero inbox cognitive fatigue.
 3. **Right: Decision Audit Trail ("AI Reads, Code Decides"):**
    - **Relative Deadline Resolution Engine:** Displays the mathematical derivation from raw phrases (e.g. `Received: Oct 20, 11:15 AM` $+$ `7 Days` $\rightarrow$ `Due: Oct 27, 11:15 AM` $\rightarrow$ Live ticking badge).

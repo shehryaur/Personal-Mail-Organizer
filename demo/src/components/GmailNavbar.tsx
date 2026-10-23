@@ -1,87 +1,70 @@
 import React from 'react';
-import { Menu, Search, SlidersHorizontal, HelpCircle, Settings, Grid3X3 } from 'lucide-react';
+import { Icon } from './Icon';
 
 interface GmailNavbarProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
-  onPalantirQuickJump: () => void;
 }
 
-export const GmailNavbar: React.FC<GmailNavbarProps> = ({
-  searchQuery,
-  onSearchChange,
-  onPalantirQuickJump,
-}) => {
+const IconButton: React.FC<{ icon: string; label: string }> = ({ icon, label }) => (
+  <button
+    className="w-12 h-12 flex items-center justify-center rounded-full text-[#444746] hover:bg-[#e9eef6] cursor-pointer"
+    aria-label={label}
+    title={label}
+  >
+    <Icon name={icon} size={24} />
+  </button>
+);
+
+export const GmailNavbar: React.FC<GmailNavbarProps> = ({ searchQuery, onSearchChange }) => {
   return (
-    <header className="h-16 px-4 bg-[#f6f8fc] flex items-center justify-between gap-4 select-none shrink-0 border-b border-[#f0f4f9]">
-      {/* Left: Hamburger & Gmail Logo */}
-      <div className="flex items-center gap-4 w-60 shrink-0">
-        <button
-          className="p-2.5 rounded-full hover:bg-[#e9eef6] text-[#444746] transition-colors cursor-pointer"
-          aria-label="Main menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-2 cursor-pointer">
-          {/* Minimalist SVG Gmail Icon */}
-          <svg className="w-7 h-7" viewBox="0 0 24 24">
-            <path
-              fill="#ea4335"
-              d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"
-            />
+    <header className="h-16 pl-2 pr-2 bg-[#f6f8fc] flex items-center gap-2 select-none shrink-0 font-gs">
+      {/* Left: menu + logo, same width as the sidebar below it */}
+      <div className="flex items-center w-[238px] shrink-0">
+        <IconButton icon="menu" label="Main menu" />
+        <div className="flex items-center gap-2 pl-1 cursor-pointer">
+          <svg width="30" height="23" viewBox="52 42 88 66" aria-hidden="true">
+            <path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6" />
+            <path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15" />
+            <path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2" />
+            <path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92" />
+            <path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2" />
           </svg>
-          <span className="text-[21px] text-[#444746] font-normal tracking-tight font-sans">
-            Gmail
-          </span>
-          <span className="ml-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#c2e7ff] text-[#001d35]">
-            Jobs Triage
-          </span>
+          <span className="text-[22px] leading-6 text-[#444746]">Gmail</span>
         </div>
       </div>
 
-      {/* Center: Material Design 3 Search Pill */}
-      <div className="flex-1 max-w-2xl flex items-center">
-        <div className="w-full h-11 bg-[#eaf1fb] hover:bg-[#dfe8f6] focus-within:bg-white focus-within:shadow-md focus-within:ring-1 focus-within:ring-[#0b57d0] rounded-full flex items-center px-4 transition-all">
-          <Search className="w-5 h-5 text-[#444746] shrink-0" />
-          <input
-            type="text"
-            placeholder="Search mail or jobs (e.g. 'Palantir', 'interview', '48h')"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full bg-transparent border-none outline-none px-3 text-sm text-[#1f1f1f] placeholder-[#444746]"
-          />
+      {/* Search pill */}
+      <div className="flex-1 max-w-[720px] h-12 bg-[#e9eef6] focus-within:bg-white focus-within:shadow-[0_1px_1px_0_rgba(65,69,73,.3),0_1px_3px_1px_rgba(65,69,73,.15)] rounded-full flex items-center pl-1 pr-1">
+        <IconButton icon="search" label="Search" />
+        <input
+          type="text"
+          placeholder="Search mail"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="flex-1 min-w-0 bg-transparent outline-none text-base text-[#1f1f1f] placeholder-[#444746]"
+        />
+        {searchQuery && (
           <button
-            className="p-1 rounded-full text-[#444746] hover:bg-black/5 cursor-pointer"
-            title="Search options"
+            onClick={() => onSearchChange('')}
+            className="w-10 h-10 flex items-center justify-center rounded-full text-[#444746] hover:bg-black/5 cursor-pointer"
+            aria-label="Clear search"
           >
-            <SlidersHorizontal className="w-4 h-4" />
+            <Icon name="close" size={24} />
           </button>
-        </div>
+        )}
+        <IconButton icon="tune" label="Show search options" />
       </div>
 
-      {/* Right: Quick Jump & User Controls */}
-      <div className="flex items-center gap-2 shrink-0">
-        <button
-          onClick={onPalantirQuickJump}
-          className="h-9 px-3.5 bg-white hover:bg-[#f8fafd] text-[#0b57d0] border border-[#c2e7ff] rounded-full text-xs font-medium flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
-        >
-          <span className="w-2 h-2 rounded-full bg-[#0b57d0]"></span>
-          <span>Palantir Challenge</span>
-        </button>
-
-        <button className="p-2 rounded-full hover:bg-[#e9eef6] text-[#444746] transition-colors cursor-pointer">
-          <HelpCircle className="w-5 h-5" />
-        </button>
-        <button className="p-2 rounded-full hover:bg-[#e9eef6] text-[#444746] transition-colors cursor-pointer">
-          <Settings className="w-5 h-5" />
-        </button>
-        <button className="p-2 rounded-full hover:bg-[#e9eef6] text-[#444746] transition-colors cursor-pointer">
-          <Grid3X3 className="w-5 h-5" />
-        </button>
-
-        <div className="w-8 h-8 rounded-full bg-[#7c3aed] text-white flex items-center justify-center font-medium text-sm ml-1 shadow-2xs">
-          S
+      {/* Right: help, settings, apps, account */}
+      <div className="ml-auto flex items-center shrink-0">
+        <IconButton icon="help" label="Support" />
+        <IconButton icon="settings" label="Settings" />
+        <IconButton icon="apps" label="Google apps" />
+        <div className="w-12 h-12 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-[#9334e6] text-white flex items-center justify-center text-sm font-medium">
+            S
+          </div>
         </div>
       </div>
     </header>
