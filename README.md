@@ -1,8 +1,5 @@
 # Job Application Inbox Tracker (Triage Cockpit)
 
-**Palantir Product Design Show & Tell Submission — Lens A ("Make it work")**  
-*Built solo by Shehryar | Max 3-hour build time constraint*
-
 ---
 
 ## 1. The Friction (Why This Exists)
