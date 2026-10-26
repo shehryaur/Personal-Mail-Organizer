@@ -66,7 +66,7 @@ const Options: React.FC = () => {
       setStatus({
         kind: 'ok',
         text: `Connected. ${n} job email${n === 1 ? '' : 's'} in your tracker.` +
-          (s.appId ? ' Reload Gmail to see Jobs Board in the sidebar.' : ' Add the InboxSDK App ID to show it in Gmail.'),
+          (s.appId ? ' Reload Gmail to see Job Tracker in the sidebar.' : ' Add the InboxSDK App ID to show it in Gmail.'),
       });
     } else {
       setStatus({ kind: 'error', text: ERROR_TEXT[res.error || ''] || `Error: ${res.error}` });
@@ -78,7 +78,7 @@ const Options: React.FC = () => {
       <div className="max-w-xl mx-auto bg-white rounded-2xl p-6 space-y-5">
         <div className="flex items-center gap-3">
           <Icon name="work" size={28} fill className="text-[#0b57d0]" />
-          <h1 className="text-[22px] font-gs">Jobs Board settings</h1>
+          <h1 className="text-[22px] font-gs">Job Tracker settings</h1>
         </div>
         <Field
           label="Apps Script web app URL"

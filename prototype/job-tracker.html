@@ -1,0 +1,381 @@
+<title>Job Tracker in Gmail</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap">
+<style>
+/* Layout: Gmail frame around one panel: stage counts, then the to-do list beside a weekly chart, then every company on a stage board */
+:root {
+  color-scheme: light;
+  --mail-bg: #f4f6f8; --surface: #ffffff; --panel: #ecece8; --lane: #f4f4f1; --ink: #1b1b1b; --muted: #66665f;
+  --line: #e9e9e4; --lime: #d4f24a; --lime-ink: #2b3300; --sky: #dce9f7; --sky-ink: #1d3f66;
+  --amber-bg: #fff0d2; --amber-ink: #6e4500; --red-bg: #fbe4e1; --red-ink: #8a2b1f; --red: #d93025; --green: #188038;
+  --nav-on: #d3e3fd;
+  --font: "Manrope", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box }
+body { background: var(--mail-bg); color: var(--ink); font-family: var(--font); font-size: 14px }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left }
+button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px }
+svg.ic { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none }
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; font-weight: 400 }
+
+.top { height: 64px; display: flex; align-items: center; gap: 12px; padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+.icon-btn { width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center; color: #444 }
+.brand { display: flex; align-items: center; gap: 8px; font-size: 20px; color: #444; min-width: 110px }
+.brand b { width: 30px; height: 24px; border: 2px solid #c5221f; border-radius: 6px; display: grid; place-items: center; font-size: 13px; color: #c5221f }
+.search { flex: 1 1 0; min-width: 0; max-width: 720px; height: 48px; border-radius: 24px; background: #e9eef4; display: flex; align-items: center; gap: 12px; padding: 0 16px; color: #444 }
+.search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 15px; outline: none }
+.avatar { margin-left: auto; width: 36px; height: 36px; border-radius: 18px; background: var(--ink); color: #fff; display: grid; place-items: center; font-weight: 600 }
+
+.body { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 16px; padding-left: max(0px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+nav { flex: 0 0 248px; padding: 4px 0 0 8px; display: flex; flex-direction: column; gap: 2px }
+.compose { height: 56px; width: 148px; margin-bottom: 14px; border-radius: 16px; background: #dbe6f3; display: flex; align-items: center; gap: 12px; padding: 0 20px; font-weight: 600 }
+.nav { height: 36px; border-radius: 18px; display: flex; align-items: center; gap: 16px; padding: 0 16px 0 24px; width: 100%; color: #333 }
+.nav:hover { background: #e8ebee }
+.nav.on { background: var(--nav-on); font-weight: 700; color: #0b1d33 }
+.nav .grow { flex: 1 }
+.badge { min-width: 22px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--lime); color: var(--ink); font-size: 11px; font-weight: 700; display: grid; place-items: center }
+.divider { height: 1px; background: #dde1e6; margin: 10px 16px 10px 24px }
+.hint { margin: 12px 8px 0 16px; padding: 14px 16px; border-radius: 16px; background: var(--ink); color: #fff; font-size: 13px; line-height: 1.45 }
+.hint p { margin: 4px 0 0; color: #d7d7d2 }
+main { flex: 999 1 560px; min-width: 0 }
+
+.sheet { background: var(--surface); border-radius: 16px; min-height: 640px; overflow: hidden }
+.sheet-head { height: 48px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid #eceef1; color: #555; font-size: 13px }
+.sheet-head b { color: var(--ink); font-size: 14px }
+.sheet-head span { margin-left: auto }
+.mail { width: 100%; min-height: 48px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 10px 16px; border-bottom: 1px solid #f0f1f3 }
+.mail:hover { background: #f7f7f4 }
+.mail .from { flex: 0 0 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mail .subj { flex: 1 1 320px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mail .snip { color: #5f6368 }
+.mail .date { font-size: 12px; color: #5f6368 }
+.mail.unread .from, .mail.unread .subj > b, .mail.unread .date { font-weight: 700; color: var(--ink) }
+.mail .subj > b { font-weight: 400 }
+.pill-btn { height: 40px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; color: #333 }
+.pill-btn:hover { background: #ecece8 }
+.letter { padding: 8px 32px 32px 72px; max-width: 860px }
+.letter h1 { margin: 0 0 16px; font-size: 22px; font-weight: 400 }
+.note { padding: 10px 14px; border-radius: 12px; display: flex; align-items: center; gap: 10px; font-size: 13px; background: var(--lime) }
+.note.no { background: #f1f1ed; color: #4a4a45 }
+.who { display: flex; align-items: center; gap: 12px; margin: 20px 0 }
+.who .av { width: 40px; height: 40px; border-radius: 20px; background: #e9eef4; display: grid; place-items: center; font-weight: 700; color: #444 }
+.who small { display: block; color: #5f6368; font-size: 12px }
+.letter .text { line-height: 1.65; white-space: pre-line; max-width: 65ch }
+
+.dash { background: var(--panel); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 16px }
+.dash-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; margin-bottom: 8px }
+.dash-head h1 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -0.02em }
+.dash-head .sub { font-size: 22px; color: var(--muted); font-weight: 300 }
+.dash-head .grow { flex: 1 1 260px }
+.updated { font-size: 13px; color: var(--muted) }
+.cta { height: 44px; border-radius: 22px; background: var(--ink); color: #fff; display: flex; align-items: center; gap: 12px; padding: 0 6px 0 18px; font-size: 13px; font-weight: 600 }
+.cta span { width: 32px; height: 32px; border-radius: 16px; background: #fff; color: var(--ink); display: grid; place-items: center }
+.card { background: var(--surface); border-radius: 24px; padding: 20px 22px; min-width: 0 }
+.card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-bottom: 14px }
+.card-head h2 { margin: 0; font-size: 18px; font-weight: 700 }
+.card-head .aside { margin-left: auto; font-size: 12px; color: var(--muted) }
+
+.counts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
+.count { background: var(--surface); border-radius: 22px; padding: 18px 20px; display: flex; flex-direction: column; gap: 2px; border: 2px solid transparent; width: 100% }
+.count:hover { border-color: #d9d9d3 }
+.count.on { border-color: var(--ink) }
+.count .k { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600 }
+.count .k i { width: 10px; height: 10px; border-radius: 5px }
+.count .num { font-size: 52px; line-height: 1.15 }
+.count small { font-size: 12px; color: var(--muted); min-height: 16px }
+.count.hot { background: var(--lime) }
+.count.hot small { color: var(--lime-ink) }
+
+.row2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px }
+.todo { display: flex; flex-direction: column; gap: 8px }
+.task { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 16px; background: var(--lane); width: 100% }
+.task:hover { background: #ededE8 }
+.when { flex: none; min-width: 92px; height: 34px; border-radius: 17px; display: grid; place-items: center; font-size: 12px; font-weight: 700; padding: 0 10px; background: #fff; border: 1px solid #e2e2dd; font-variant-numeric: tabular-nums }
+.when.hot { background: var(--lime); border-color: transparent }
+.when.warn { background: var(--amber-bg); border-color: transparent; color: var(--amber-ink) }
+.task .what { flex: 1; min-width: 0 }
+.task .what b { display: block }
+.task .what small { display: block; font-size: 12px; color: #5f5f59 }
+.task .go { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; white-space: nowrap }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px }
+.tabs button { height: 32px; border-radius: 16px; padding: 0 12px; font-size: 12px; font-weight: 600; background: var(--lane) }
+.tabs button.on { background: var(--ink); color: #fff }
+.row2 > .card { display: flex; flex-direction: column }
+.bars { flex: 1; min-height: 210px; display: flex; align-items: flex-end; gap: 8px; padding-top: 8px }
+.bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px }
+.bar em { font-style: normal; font-size: 12px; font-weight: 700; height: 16px }
+.bar i { display: block; width: 100%; max-width: 30px; border-radius: 15px; background: #e9e9e4; min-height: 6px }
+.bar.now i { background: var(--lime) }
+.bar small { font-size: 11px; color: var(--muted); height: 14px; white-space: nowrap }
+.chart-note { font-size: 12px; color: var(--muted); margin-top: 10px }
+
+.board-box { overflow-x: auto }
+.board { display: grid; grid-template-columns: repeat(5, minmax(200px, 1fr)); gap: 12px; min-width: 1040px }
+.lane { background: var(--lane); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 8px; transition: opacity .2s }
+.lane.dim { opacity: .35 }
+.lane-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px 6px; font-size: 13px; font-weight: 700 }
+.lane-head i { width: 10px; height: 10px; border-radius: 5px }
+.lane-head span { margin-left: auto; min-width: 24px; height: 22px; border-radius: 11px; background: #fff; display: grid; place-items: center; font-size: 12px }
+.co-card { background: var(--surface); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; width: 100%; border: 1px solid transparent }
+.co-card:hover { border-color: #d9d9d3 }
+.co-card b { font-size: 14px }
+.co-card .role { font-size: 12px; color: var(--muted); margin-top: -6px }
+.co-card .foot { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted) }
+.dots { display: flex; gap: 4px }
+.dots i { width: 18px; height: 4px; border-radius: 2px; background: #e6e6e1 }
+.dots i.d { background: var(--ink) }
+.dots i.x { background: var(--red) }
+.dots i.o { background: var(--green) }
+.chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; min-height: 24px; line-height: 1.3; padding: 4px 9px; border-radius: 12px; font-size: 11px; font-weight: 700 }
+.chip.due { background: var(--lime); color: var(--lime-ink) }
+.chip.info { background: var(--sky); color: var(--sky-ink) }
+.chip.warn { background: var(--amber-bg); color: var(--amber-ink) }
+.chip.closed { background: var(--red-bg); color: var(--red-ink) }
+.chip.wait { background: #ececE8; color: #4a4a45 }
+.lane .empty { font-size: 12px; color: var(--muted); padding: 8px 4px }
+
+.c-applied { background: #a9a9a2 } .c-assessment { background: #6f9fd8 } .c-interview { background: var(--lime); box-shadow: inset 0 0 0 1.5px #9fbf1f }
+.c-offer { background: var(--green) } .c-rejected { background: var(--red) }
+
+@media (max-width: 1180px) { .counts { grid-template-columns: repeat(3, minmax(0, 1fr)) } .row2 { grid-template-columns: minmax(0, 1fr) } }
+@media (max-width: 700px) {
+  .counts { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .dash { padding: 18px } nav { flex-basis: 100% } .letter { padding: 8px 18px 24px } .brand span { display: none }
+  .count .num { font-size: 40px }
+}
+@media (prefers-reduced-motion: reduce) { .lane { transition: none } }
+</style>
+
+<div id="app"></div>
+
+<script>
+(() => {
+  const I = {
+    menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+    inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',
+    star: '<path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5-4.7-4.6 6.5-.9z"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    send: '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>',
+    file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+    bag: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>',
+    refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+    right: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    left: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+    clockS: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+  };
+  const ic = (n, s = 20) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // Where each company is. reached = stages it got to (drives the counts and the progress dots).
+  const STAGES = [
+    { key: 'applied', name: 'Applied' }, { key: 'assessment', name: 'Assessment' }, { key: 'interview', name: 'Interview' },
+    { key: 'offer', name: 'Offer' }, { key: 'rejected', name: 'Rejected' }
+  ];
+  const APPS = [
+    { id: 'pinecone', company: 'Pinecone Studio', role: 'Product Designer', stage: 'applied', reached: ['applied'], chip: ['wait', 'Applied Oct 24'], last: 'Oct 24' },
+    { id: 'quill', company: 'Quill Health', role: 'Product Designer', stage: 'applied', reached: ['applied'], chip: ['wait', 'Applied Oct 19'], last: 'Oct 19' },
+    { id: 'harbor', company: 'Harbor Mobility', role: 'UX Designer', stage: 'applied', reached: ['applied'], chip: ['wait', 'Applied Oct 9'], last: 'Oct 9' },
+    { id: 'fernhill', company: 'Fernhill Bank', role: 'Product Designer', stage: 'applied', reached: ['applied'], chip: ['warn', 'No reply in 73 days'], last: 'Aug 12' },
+    { id: 'orbital', company: 'Orbital Systems', role: 'Interaction Designer', stage: 'applied', reached: ['applied'], chip: ['warn', 'No reply in 65 days'], last: 'Aug 20' },
+    { id: 'lumen', company: 'Lumen Analytics', role: 'Product Designer', stage: 'assessment', reached: ['applied', 'assessment'], chip: ['due', 'Video due in 3d 14h'], last: 'Oct 23' },
+    { id: 'cobalt', company: 'Cobalt Pay', role: 'Frontend Engineer', stage: 'assessment', reached: ['applied', 'assessment'], chip: ['due', 'Coding test due Oct 30'], last: 'Oct 21' },
+    { id: 'kestrel', company: 'Kestrel AI', role: 'Design Engineer', stage: 'interview', reached: ['applied', 'assessment', 'interview'], chip: ['due', 'Interview Thu 2:00 PM'], last: 'Oct 22' },
+    { id: 'sable', company: 'Sable & Co', role: 'Product Designer', stage: 'interview', reached: ['applied', 'interview'], chip: ['info', 'Pick an interview slot'], last: 'Oct 24' },
+    { id: 'meridian', company: 'Meridian Games', role: 'UI Designer', stage: 'interview', reached: ['applied', 'interview'], chip: ['wait', 'Interviewed Oct 17, waiting'], last: 'Oct 17' },
+    { id: 'atlas', company: 'Atlas Robotics', role: 'UX Researcher', stage: 'offer', reached: ['applied', 'assessment', 'interview', 'offer'], chip: ['due', 'Decide by Nov 3'], last: 'Oct 20' },
+    { id: 'northwind', company: 'Northwind Labs', role: 'Product Analyst', stage: 'rejected', reached: ['applied', 'rejected'], chip: ['closed', 'Rejected Oct 16'], last: 'Oct 16' },
+    { id: 'brightpath', company: 'Brightpath', role: 'Design Systems Lead', stage: 'rejected', reached: ['applied', 'interview', 'rejected'], chip: ['closed', 'Rejected after interview'], last: 'Oct 11' },
+    { id: 'tidewater', company: 'Tidewater Health', role: 'Service Designer', stage: 'rejected', reached: ['applied', 'assessment', 'rejected'], chip: ['closed', 'Rejected after test'], last: 'Sep 30' }
+  ];
+  const TODO = [
+    ['lumen', 'Lumen Analytics', 'Record the video assessment', 'Due Oct 30, 8:30 AM', '3d 14h', 'hot'],
+    ['kestrel', 'Kestrel AI', 'Interview with the design team', 'Thu, Oct 30, 2:00 PM', 'Thu 2 PM', 'hot'],
+    ['cobalt', 'Cobalt Pay', 'Finish the take-home coding test', 'Due Thu, Oct 30', '5d', ''],
+    ['sable', 'Sable & Co', 'Pick a time for your first interview', 'No deadline given', 'This week', ''],
+    ['atlas', 'Atlas Robotics', 'Reply to your offer', 'Decide by Nov 3', '9d', ''],
+    ['fernhill', 'Fernhill Bank', 'No reply in 73 days. Send a follow-up?', 'Applied Aug 12', 'Follow up', 'warn']
+  ];
+  const WEEKS = ['Aug 3', 'Aug 10', 'Aug 17', 'Aug 24', 'Aug 31', 'Sep 7', 'Sep 14', 'Sep 21', 'Sep 28', 'Oct 5', 'Oct 12', 'Oct 19'];
+  const WEEKLY = {
+    applied: [1, 0, 2, 1, 1, 0, 2, 1, 2, 1, 1, 2],
+    assessment: [0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 2],
+    interview: [0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1]
+  };
+  const CHART_NAMES = { applied: 'Applications sent', assessment: 'Assessments received', interview: 'Interviews received' };
+
+  const EMAILS = {
+    lumen: ['Lumen Analytics Talent', 'talent@lumen-analytics.example', 'Next step: video assessment for Product Designer', 'Oct 23, 8:30 AM', true, 'Assessment. Deadline "within 7 days of receiving this email" works out to Oct 30, 8:30 AM.', 'Hi Sam,\n\nThanks for applying to the Product Designer role at Lumen Analytics. We enjoyed your portfolio and would like to invite you to the next step.\n\nPlease record a short video (about 3 minutes) walking us through one project you are proud of. Complete it within 7 days of receiving this email using the link below.\n\nRecord your video\n\nBest,\nThe Lumen Analytics Talent Team'],
+    kestrel: ['Priya at Kestrel AI', 'priya@kestrel-ai.example', 'Interview with the design team, Thursday 2:00 PM', 'Oct 22, 4:12 PM', true, 'Interview on Thu, Oct 30 at 2:00 PM. Merged with 3 earlier emails from Kestrel AI.', 'Hi Sam,\n\nGreat news: the team would love to meet you. I have booked a 45-minute video interview with our design team for Thursday at 2:00 PM.\n\nThe calendar invite has the meeting link. Let me know if the time does not work.\n\nThanks,\nPriya\nRecruiter, Kestrel AI'],
+    cobalt: ['Cobalt Pay Careers', 'no-reply@greenhouse.example', 'Your coding exercise for Frontend Engineer', 'Oct 21, 10:05 AM', true, 'Assessment. Deadline "by Thursday, October 30" found in the email.', 'Hello Sam,\n\nAs the next step for the Frontend Engineer position, please complete our take-home coding exercise by Thursday, October 30.\n\nIt should take about 2 hours. Submit your solution through the link in this email.\n\nCobalt Pay Recruiting'],
+    sable: ['Jordan at Sable & Co', 'jordan@sable.example', 'Let’s set up your first interview', 'Oct 24, 1:15 PM', true, 'Interview invite. No deadline given; pick a slot from the booking link.', 'Hi Sam,\n\nThanks for applying for the Product Designer role. We would like to set up a 30-minute intro call.\n\nPlease pick a time that works for you using the booking link below.\n\nBest,\nJordan'],
+    fernhill: ['Fernhill Bank Careers', 'careers@fernhill.example', 'We received your application: Product Designer', 'Aug 12, 9:41 AM', true, 'Applied 73 days ago with no reply since. A follow-up is suggested.', 'Dear Sam,\n\nThank you for your interest in Fernhill Bank. We have received your application for Product Designer and will review it carefully.\n\nIf your profile matches the role, a member of our team will be in touch.\n\nKind regards,\nFernhill Bank Talent Acquisition'],
+    atlas: ['Atlas Robotics People Team', 'people@atlas-robotics.example', 'Your offer from Atlas Robotics', 'Oct 20, 3:30 PM', true, 'Offer. Decide by Nov 3.', 'Hi Sam,\n\nWe are thrilled to offer you the UX Researcher position at Atlas Robotics. Your offer letter is attached.\n\nPlease review it and let us know your decision by November 3.\n\nAtlas Robotics People Team'],
+    northwind: ['Northwind Labs', 'jobs@northwind.example', 'Update on your application', 'Oct 16, 11:00 AM', true, 'Rejection. Application closed.', 'Hi Sam,\n\nThank you for your time and interest in the Product Analyst role. After careful consideration, we have decided to move forward with other candidates.\n\nNorthwind Labs Recruiting'],
+    library: ['Campus Library', 'library@university.example', 'Your book is due Monday', 'Oct 23', false, 'Not a job email. Ignored.', 'Reminder: your book is due back on Monday. Renew online to keep it longer.'],
+    digest: ['Weekly Design Digest', 'hello@digest.example', '10 interview tips for designers', 'Oct 22', false, 'A newsletter that mentions interviews. Not a job email. Ignored.', 'This week: how to prepare a portfolio walkthrough, what to ask in interviews, and more.'],
+    mom: ['Mom', 'mom@family.example', 'Sunday dinner?', 'Oct 21', false, 'Not a job email. Ignored.', 'Are you coming on Sunday? Dad is making lasagna.']
+  };
+  const INBOX = [
+    ['sable', 'Please pick a time that works for you', '1:15 PM', true],
+    ['lumen', 'Please record a short video within 7 days of receiving this email', 'Oct 23', true],
+    ['library', 'Renew online to keep it longer', 'Oct 23', true],
+    ['kestrel', 'The calendar invite has the meeting link', 'Oct 22', false],
+    ['digest', 'How to prepare a portfolio walkthrough', 'Oct 22', false],
+    ['cobalt', 'Please complete our take-home exercise by Thursday', 'Oct 21', false],
+    ['mom', 'Dad is making lasagna', 'Oct 21', false],
+    ['atlas', 'We are thrilled to offer you the UX Researcher position', 'Oct 20', false],
+    ['northwind', 'We have decided to move forward with other candidates', 'Oct 16', false],
+    ['fernhill', 'We will review it carefully', 'Aug 12', false]
+  ];
+
+  const startView = ['inbox', 'tracker'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'inbox';
+  const S = { view: startView, prev: startView, email: null, chart: 'applied', focus: null, checking: false, updated: 'Updated 3 min ago' };
+
+  function topBar() {
+    return `<header class="top">
+      <button class="icon-btn" aria-label="Main menu">${ic('menu', 22)}</button>
+      <div class="brand"><b>M</b><span>Mail</span></div>
+      <label class="search">${ic('search')}<input id="q" placeholder="Search mail" aria-label="Search mail"></label>
+      <div class="avatar" aria-label="Account">S</div>
+    </header>`;
+  }
+
+  function sidebar() {
+    const inMail = S.view === 'inbox' || (S.view === 'email' && S.prev === 'inbox');
+    const inTracker = S.view === 'tracker' || (S.view === 'email' && S.prev === 'tracker');
+    const item = (icon, label) => `<button class="nav" data-a="inbox">${ic(icon)}<span>${label}</span></button>`;
+    return `<nav aria-label="Mailboxes">
+      <button class="compose">${ic('pen')}Compose</button>
+      <button class="nav${inMail ? ' on' : ''}" data-a="inbox">${ic('inbox')}<span class="grow">Inbox</span><span style="font-size:12px;font-weight:700">12</span></button>
+      ${item('star', 'Starred')}${item('clock', 'Snoozed')}${item('send', 'Sent')}${item('file', 'Drafts')}
+      <div class="divider"></div>
+      <button class="nav${inTracker ? ' on' : ''}" data-a="tracker">${ic('bag')}<span class="grow">Job Tracker</span><span class="badge">${TODO.length}</span></button>
+      ${S.view === 'inbox' ? `<div class="hint"><b>Your job search, in one place</b><p>Click Job Tracker above. Your emails stay exactly as they are.</p></div>` : ''}
+    </nav>`;
+  }
+
+  function inbox() {
+    return `<section class="sheet" aria-label="Inbox">
+      <div class="sheet-head"><b>Primary</b><span>1–10 of 1,284</span></div>
+      ${INBOX.map(([id, snip, date, unread]) => {
+        const e = EMAILS[id];
+        return `<button class="mail${unread ? ' unread' : ''}" data-a="open" data-v="${id}">
+          <span class="from">${esc(e[0])}</span>
+          <span class="subj"><b>${esc(e[2])}</b><span class="snip"> – ${esc(snip)}</span></span>
+          <span class="date">${date}</span>
+        </button>`;
+      }).join('')}
+    </section>`;
+  }
+
+  function emailView() {
+    const app = APPS.find(a => a.id === S.email);
+    const e = EMAILS[S.email] || [app.company, 'jobs@example.com', 'About your application: ' + app.role, app.last, true, STAGES.find(s => s.key === app.stage).name + '. ' + app.chip[1] + '.', 'Hi Sam,\n\nThis is a sample email for the prototype. In the real extension, this opens the actual thread in Gmail.'];
+    return `<section class="sheet" aria-label="Email">
+      <div style="padding:8px 12px"><button class="pill-btn" data-a="back">${ic('left', 18)}${S.prev === 'tracker' ? 'Back to Job Tracker' : 'Back to Inbox'}</button></div>
+      <div class="letter">
+        <h1>${esc(e[2])}</h1>
+        <div class="note${e[4] ? '' : ' no'}">${ic('bag', 18)}<span><b>Job Tracker:</b> ${esc(e[5])}</span></div>
+        <div class="who"><div class="av">${esc(e[0][0])}</div>
+          <div style="flex:1;min-width:0"><b>${esc(e[0])}</b> <span style="color:#5f6368;font-size:12px">&lt;${esc(e[1])}&gt;</span><small>to me</small></div>
+          <small style="color:#5f6368;font-size:12px">${esc(e[3])}</small></div>
+        <div class="text">${esc(e[6])}</div>
+      </div>
+    </section>`;
+  }
+
+  function dashboard() {
+    const got = key => APPS.filter(a => a.reached.includes(key)).length;
+    const now = key => APPS.filter(a => a.stage === key);
+    const ghosted = APPS.filter(a => a.chip[0] === 'warn').length;
+    const COUNT_NOTES = {
+      applied: `${now('applied').length} waiting, ${ghosted} with no reply`,
+      assessment: `${now('assessment').length} to finish this week`,
+      interview: `Next: Kestrel AI, Thu 2 PM`,
+      offer: `Decide by Nov 3`,
+      rejected: `Closed`
+    };
+    const counts = STAGES.map(s => `<button class="count${s.key === 'offer' ? ' hot' : ''}${S.focus === s.key ? ' on' : ''}" data-a="focus" data-v="${s.key}" aria-pressed="${S.focus === s.key}">
+        <span class="k"><i class="c-${s.key}"></i>${s.key === 'applied' ? 'Applied' : s.key === 'rejected' ? 'Rejections' : s.name + (got(s.key) === 1 ? '' : 's')}</span>
+        <span class="num">${got(s.key)}</span><small>${COUNT_NOTES[s.key]}</small></button>`).join('');
+
+    const tasks = TODO.map(t => `<button class="task" data-a="open" data-v="${t[0]}">
+        <span class="when${t[5] ? ' ' + t[5] : ''}">${t[4]}</span>
+        <span class="what"><b>${esc(t[1])}</b><small>${esc(t[2])} · ${esc(t[3])}</small></span>
+        <span class="go">Open email ${ic('right', 14)}</span></button>`).join('');
+
+    const series = WEEKLY[S.chart];
+    const max = Math.max(1, ...series);
+    const bars = series.map((v, i) => `<div class="bar${i === series.length - 1 ? ' now' : ''}" role="img" aria-label="Week of ${WEEKS[i]}: ${v}">
+        <em>${v || ''}</em><i style="height:${v ? Math.round(v / max * 70) : 2}%"></i><small>${i % 2 === 1 ? WEEKS[i] : ''}</small></div>`).join('');
+
+    const lanes = STAGES.map(s => {
+      const cards = now(s.key).map(a => `<button class="co-card" data-a="open" data-v="${a.id}">
+          <b>${esc(a.company)}</b><span class="role">${esc(a.role)}</span>
+          <span class="chip ${a.chip[0]}">${esc(a.chip[1])}</span>
+          <span class="foot"><span class="dots" aria-label="Stages reached">${['applied', 'assessment', 'interview', 'offer'].map(k => `<i class="${a.reached.includes(k) ? (k === 'offer' ? 'o' : 'd') : ''}"></i>`).join('')}${a.stage === 'rejected' ? '<i class="x"></i>' : ''}</span><span title="Last email">${a.last}</span></span>
+        </button>`).join('');
+      return `<div class="lane${S.focus && S.focus !== s.key ? ' dim' : ''}">
+        <div class="lane-head"><i class="c-${s.key}"></i>${s.name}<span>${now(s.key).length}</span></div>
+        ${cards || '<div class="empty">Nothing here</div>'}
+      </div>`;
+    }).join('');
+
+    return `<section class="dash" aria-label="Job Tracker">
+      <div class="dash-head">
+        <div class="grow"><h1>Dashboard</h1><div class="sub">Job applications</div></div>
+        <span class="updated">${S.updated}</span>
+        <button class="cta" data-a="refresh">${S.checking ? 'Checking…' : 'Refresh'}<span>${ic('refresh', 16)}</span></button>
+      </div>
+
+      <div class="counts" role="group" aria-label="Applications by stage">${counts}</div>
+
+      <div class="row2">
+        <div class="card">
+          <div class="card-head"><h2>To do</h2><span class="aside">${TODO.length} things, soonest first</span></div>
+          <div class="todo">${tasks}</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>${CHART_NAMES[S.chart]}</h2>
+            <div class="tabs" role="group" aria-label="Chart" style="margin-left:auto">${Object.keys(CHART_NAMES).map(k => `<button class="${S.chart === k ? 'on' : ''}" data-a="chart" data-v="${k}">${k === 'applied' ? 'Applied' : k === 'assessment' ? 'Assessments' : 'Interviews'}</button>`).join('')}</div>
+          </div>
+          <div class="bars">${bars}</div>
+          <div class="chart-note">Per week, last 12 weeks. This week is in lime.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Where every application stands</h2><span class="aside">${S.focus ? 'Showing ' + STAGES.find(s => s.key === S.focus).name + '. Click the number again to show all.' : 'Click a company to open its latest email'}</span></div>
+        <div class="board-box"><div class="board">${lanes}</div></div>
+      </div>
+    </section>`;
+  }
+
+  const app = document.getElementById('app');
+  function render() {
+    const main = S.view === 'inbox' ? inbox() : S.view === 'email' ? emailView() : dashboard();
+    app.innerHTML = topBar() + `<div class="body">${sidebar()}<main>${main}</main></div>`;
+  }
+
+  const actions = {
+    inbox: () => { S.view = 'inbox'; },
+    tracker: () => { S.view = 'tracker'; },
+    open: v => { S.prev = S.view === 'email' ? S.prev : S.view; S.view = 'email'; S.email = v; window.scrollTo(0, 0); },
+    back: () => { S.view = S.prev; },
+    chart: v => { S.chart = v; },
+    focus: v => { S.focus = S.focus === v ? null : v; },
+    refresh: () => { S.checking = true; setTimeout(() => { S.checking = false; S.updated = 'Updated just now'; render(); }, 900); }
+  };
+  app.addEventListener('click', e => {
+    const el = e.target.closest('[data-a]');
+    if (!el || !actions[el.dataset.a]) return;
+    actions[el.dataset.a](el.dataset.v);
+    render();
+  });
+  render();
+})();
+</script>

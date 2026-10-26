@@ -20,7 +20,7 @@ export const GmailNavbar: React.FC<GmailNavbarProps> = ({ searchQuery, onSearchC
   return (
     <header className="h-16 pl-2 pr-2 bg-[#f6f8fc] flex items-center gap-2 select-none shrink-0 font-gs">
       {/* Left: menu + logo, same width as the sidebar below it */}
-      <div className="flex items-center w-[238px] shrink-0">
+      <div className="flex items-center md:w-[238px] shrink-0">
         <IconButton icon="menu" label="Main menu" />
         <div className="flex items-center gap-2 pl-1 cursor-pointer">
           <svg width="30" height="23" viewBox="52 42 88 66" aria-hidden="true">
@@ -30,7 +30,7 @@ export const GmailNavbar: React.FC<GmailNavbarProps> = ({ searchQuery, onSearchC
             <path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92" />
             <path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2" />
           </svg>
-          <span className="text-[22px] leading-6 text-[#444746]">Gmail</span>
+          <span className="hidden sm:inline text-[22px] leading-6 text-[#444746]">Gmail</span>
         </div>
       </div>
 
@@ -53,14 +53,16 @@ export const GmailNavbar: React.FC<GmailNavbarProps> = ({ searchQuery, onSearchC
             <Icon name="close" size={24} />
           </button>
         )}
-        <IconButton icon="tune" label="Show search options" />
+        <span className="hidden sm:inline-flex"><IconButton icon="tune" label="Show search options" /></span>
       </div>
 
       {/* Right: help, settings, apps, account */}
       <div className="ml-auto flex items-center shrink-0">
-        <IconButton icon="help" label="Support" />
-        <IconButton icon="settings" label="Settings" />
-        <IconButton icon="apps" label="Google apps" />
+        <span className="hidden lg:flex">
+          <IconButton icon="help" label="Support" />
+          <IconButton icon="settings" label="Settings" />
+          <IconButton icon="apps" label="Google apps" />
+        </span>
         <div className="w-12 h-12 flex items-center justify-center">
           <div className="w-8 h-8 rounded-full bg-[#9334e6] text-white flex items-center justify-center text-sm font-medium">
             S

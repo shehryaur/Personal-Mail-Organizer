@@ -1,9 +1,7 @@
-// The Jobs Board as it runs inside Gmail (an extension page in an iframe).
-// Shows the cached feed instantly, then asks the Apps Script to process new mail.
+// The Job Tracker as it runs inside Gmail (an extension page in an iframe).
+// Shows the cached feed instantly, then asks the Apps Script to read new mail.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Application } from '../types';
-import { JobsBoard } from '../components/JobsBoard';
-import { FollowUpModal } from '../components/FollowUpModal';
+import { TrackerDashboard } from '../components/dashboard/TrackerDashboard';
 import { Icon } from '../components/Icon';
 import { SIMULATED_NOW, tickNow } from '../utils/dateUtils';
 import { adaptFeed } from './feed';
@@ -37,11 +35,11 @@ function ago(iso?: string): string {
   return hours < 24 ? `Updated ${hours} h ago` : `Updated ${new Date(iso).toLocaleDateString()}`;
 }
 
+const openSettings = () => chrome.runtime.sendMessage({ type: MSG.OPEN_OPTIONS });
+
 export const BoardApp: React.FC = () => {
   const [result, setResult] = useState<FeedResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [followUpApp, setFollowUpApp] = useState<Application | null>(null);
   const [, forceTick] = useState(0);
 
   const refresh = useCallback(async () => {
@@ -88,97 +86,44 @@ export const BoardApp: React.FC = () => {
   const error = result && !result.ok ? ERRORS[result.error || ''] || ERRORS.network : null;
   const staleError = result && result.ok && result.error ? ERRORS[result.error] || ERRORS.network : null;
 
+  const message = (icon: string, title: string, body: React.ReactNode, actions?: React.ReactNode) => (
+    <div className="tk-message">
+      <Icon name={icon} size={40} className="text-[#66665f]" />
+      <h2>{title}</h2>
+      <div>{body}</div>
+      {actions}
+    </div>
+  );
+
   return (
-    <div className="h-screen flex flex-col bg-white text-[#1f1f1f]">
-      {/* Header */}
-      <header className="h-16 shrink-0 px-4 flex items-center gap-3 border-b border-[#e0e2ec]">
-        <Icon name="work" size={24} className="text-[#0b57d0]" fill />
-        <h1 className="text-[22px] font-gs">Jobs Board</h1>
-        <span className="text-xs text-[#747775] ml-1" aria-live="polite">
-          {loading ? 'Checking for new emails…' : result && result.ok ? ago(result.fetchedAt) : ''}
-        </span>
-        <div className="ml-auto flex items-center gap-1">
-          <div className="hidden md:flex items-center h-10 w-72 rounded-full bg-[#e9eef6] focus-within:bg-white focus-within:shadow px-3 gap-2">
-            <Icon name="search" size={20} className="text-[#444746]" />
-            <input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search companies"
-              className="flex-1 min-w-0 bg-transparent outline-none text-sm"
-            />
-          </div>
-          <button
-            onClick={refresh}
-            disabled={loading}
-            title="Check for new emails"
-            className="w-10 h-10 flex items-center justify-center rounded-full text-[#444746] hover:bg-[#e8eaed] cursor-pointer disabled:cursor-default"
-          >
-            <Icon name="refresh" size={22} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <button
-            onClick={() => chrome.runtime.sendMessage({ type: MSG.OPEN_OPTIONS })}
-            title="Settings"
-            className="w-10 h-10 flex items-center justify-center rounded-full text-[#444746] hover:bg-[#e8eaed] cursor-pointer"
-          >
-            <Icon name="settings" size={22} />
-          </button>
-        </div>
-      </header>
-
-      {staleError && (
-        <div className="shrink-0 px-4 h-10 flex items-center gap-2 bg-[#fef7e0] text-[#b06000] text-sm">
-          <Icon name="error" size={18} /> Showing saved data: {staleError.title.toLowerCase()}.
-        </div>
-      )}
-
-      {/* Body */}
+    <div className="h-screen overflow-y-auto bg-white p-2">
       {error ? (
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div className="max-w-md text-center space-y-3">
-            <Icon name="link_off" size={40} className="text-[#747775]" />
-            <h2 className="text-lg font-gs">{error.title}</h2>
-            <p className="text-sm text-[#444746]">{error.body}</p>
-            <div className="flex justify-center gap-2 pt-2">
-              <button
-                onClick={() => chrome.runtime.sendMessage({ type: MSG.OPEN_OPTIONS })}
-                className="h-10 px-5 rounded-full bg-[#0b57d0] text-white text-sm font-medium cursor-pointer hover:bg-[#0842a0]"
-              >
-                Open settings
-              </button>
-              <button
-                onClick={refresh}
-                className="h-10 px-5 rounded-full text-[#0b57d0] text-sm font-medium cursor-pointer hover:bg-[#f1f3f4]"
-              >
-                Try again
-              </button>
-            </div>
+        message('link_off', error.title, error.body, (
+          <div className="flex justify-center gap-2 pt-2">
+            <button onClick={openSettings} className="h-10 px-5 rounded-full bg-[#1b1b1b] text-white text-sm font-semibold cursor-pointer">Open settings</button>
+            <button onClick={refresh} className="h-10 px-5 rounded-full text-[#1b1b1b] text-sm font-semibold cursor-pointer hover:bg-[#ecece8]">Try again</button>
           </div>
-        </div>
+        ))
       ) : !board ? (
-        <div className="flex-1 flex items-center justify-center text-sm text-[#747775] gap-2">
-          <Icon name="progress_activity" size={20} className="animate-spin" /> Loading your applications…
-        </div>
+        message('progress_activity', 'Loading your applications…', '')
       ) : board.applications.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div className="max-w-md text-center space-y-2">
-            <Icon name="inbox" size={40} className="text-[#747775]" />
-            <h2 className="text-lg font-gs">No job emails yet</h2>
-            <p className="text-sm text-[#444746]">
-              Application emails show up here after the tracker processes them (every 5 minutes, or press refresh).
-            </p>
+        message('inbox', 'No job emails yet', 'They show up here after the tracker reads your mail (every 5 minutes, or press refresh).', (
+          <div className="flex justify-center pt-2">
+            <button onClick={refresh} className="h-10 px-5 rounded-full bg-[#1b1b1b] text-white text-sm font-semibold cursor-pointer">Refresh</button>
           </div>
-        </div>
+        ))
       ) : (
-        <JobsBoard
+        <TrackerDashboard
           applications={board.applications}
-          emails={board.emails}
-          searchQuery={searchQuery}
+          now={SIMULATED_NOW}
           onOpenEmail={openThread}
-          onOpenFollowUp={setFollowUpApp}
+          onRefresh={refresh}
+          refreshing={loading}
+          updatedLabel={result && result.ok ? ago(result.fetchedAt) : ''}
+          onOpenSettings={openSettings}
+          banner={staleError && <div className="tk-banner">Showing saved data: {staleError.title.toLowerCase()}.</div>}
         />
       )}
-
-      {followUpApp && <FollowUpModal application={followUpApp} onClose={() => setFollowUpApp(null)} />}
     </div>
   );
 };

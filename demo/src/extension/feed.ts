@@ -10,7 +10,7 @@ export interface FeedItem {
   sender: string;
   company: string;
   role: string;
-  stage: 'applied' | 'assessment' | 'interview' | 'rejected' | 'offer' | 'other';
+  stage: 'applied' | 'assessment' | 'interview' | 'rejected' | 'offer' | 'other' | 'review' | 'not_job';
   deadline: string;
   deadline_raw: string;
   action_needed: boolean | string;
@@ -46,7 +46,8 @@ function senderDomain(from: string): string {
 }
 
 function toEmail(it: FeedItem, appId: string): Email {
-  const stage: Stage = it.stage === 'other' ? 'review' : it.stage;
+  // not_job rows are filtered out before this; 'review' = the model wasn't sure
+  const stage: Stage = it.stage === 'not_job' ? 'review' : it.stage;
   const action = truthy(it.action_needed);
   return {
     id: String(it.message_id),
@@ -64,7 +65,7 @@ function toEmail(it: FeedItem, appId: string): Email {
     deadlineResolved: deadlineIso(it.deadline),
     actionNeeded: action,
     confidence: Number(it.confidence) || 0,
-    decisionSource: it.source === 'ai' ? 'ai' : it.source === 'guardrail_override' ? 'guardrail_override' : 'rule',
+    decisionSource: /^ai|\+ai/.test(it.source) ? 'ai' : it.source === 'injection_guard' ? 'guardrail_override' : 'rule',
     ruleMatched: it.source,
     isStarred: action,
     isArchived: false,
@@ -82,7 +83,7 @@ function toEmail(it: FeedItem, appId: string): Email {
 export function adaptFeed(items: FeedItem[], now: number): { applications: Application[]; emails: Email[] } {
   const byCompany = new Map<string, FeedItem[]>();
   for (const it of items) {
-    if (!it.message_id) continue;
+    if (!it.message_id || it.stage === 'not_job') continue;
     const key = 'app-' + (String(it.company || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '') || 'unknown');
     if (!byCompany.has(key)) byCompany.set(key, []);
     byCompany.get(key)!.push(it);

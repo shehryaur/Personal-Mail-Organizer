@@ -1,4 +1,4 @@
-export type Stage = 'applied' | 'assessment' | 'interview' | 'rejected' | 'offer' | 'review';
+export type Stage = 'applied' | 'assessment' | 'interview' | 'rejected' | 'offer' | 'other' | 'review';
 
 export type DecisionSource = 'rule' | 'ai' | 'guardrail_override';
 
@@ -43,13 +43,3 @@ export interface Application {
   tags: string[];
 }
 
-export interface DeterministicRule {
-  id: string;
-  name: string;
-  type: 'ats_domain' | 'keyword' | 'guardrail_override';
-  pattern: string;
-  targetStage: Stage;
-  action: 'archive' | 'star_inbox' | 'review';
-  matchesCount: number;
-  createdFromCorrection: boolean;
-}
