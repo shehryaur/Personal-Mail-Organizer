@@ -1,50 +1,54 @@
-# Google Apps Script Ingestion & Governance Engine
+# Google Apps Script: the part that reads your mail
 
-Part 1 of the Job Application Inbox Tracker.
+Part 1 of the Job Application Inbox Tracker. It **only reads** Gmail (`gmail.readonly` scope): no labels, stars,
+archiving or deleting. Everything it finds goes into your Google Sheet, which the Job Tracker dashboard shows.
 
-## Architectural Rule: "AI Only Reads. Code Decides."
-1. **Pre-Filter (No AI):** Matches ATS domains (`greenhouse.io`, `lever.co`, `ashbyhq.com`, etc.) and intent keywords before any LLM is invoked.
-2. **Deterministic Rules First:** Rejections, assessment links (HackerRank, CodeSignal), and interview booking links (Calendly) are recognized directly via strict regex patterns.
-3. **NVIDIA NIM Fallback:** Only called when rules cannot extract company/deadline metadata with high confidence (`meta/llama-3.1-8b-instruct` on NVIDIA API).
-4. **Safety Guardrails:** 
-   - An email with any scheduling link is NEVER auto-archived, even if the text contains rejection-like sentiment ("Unfortunately our interviewer was sick...").
-   - Low confidence (<0.85) items stay in the Inbox labeled `Jobs/Review`.
-   - Relative deadlines ("within 7 days of receiving this email") are calculated strictly against the email's arrival timestamp.
+## Files
+| File | What it is |
+|---|---|
+| `Code.gs` | Finds new mail every 5 minutes, classifies it, works out deadlines and companies, writes the Sheet, serves the feed (`doGet`). Also `exportTrainingEmails` for training data. |
+| `ModelCore.gs` | The classifier's code: email → word features → scores. The trainer (`trainer/train.js`) runs this same file. |
+| `Model.gs` | The trained weights, made by `node trainer/train.js` from your labelled mail. Not in git (it contains words from your emails). |
+| `appsscript.json` | Scopes: read-only Gmail, Sheets, external requests (only for the optional AI), triggers. |
 
-## Configuration (Script Properties)
-`setup()` creates the first two for you:
-- `SPREADSHEET_ID` (required): the tracker sheet. It is also the record of what's been processed: an email counts as done once its row is written, so nothing is lost if a run fails halfway. Without it the script stops before touching any mail.
-- `FEED_TOKEN` (required for the extension): a random secret; the web app feed answers only requests carrying it.
-- `NIM_KEY` (optional, you add it): NVIDIA NIM API key for the AI fallback.
+## How an email is classified
+1. **The trained model reads it** (inside Apps Script; nothing is sent anywhere) and picks one category:
+   `not_job`, `applied`, `assessment`, `interview`, `rejected`, `offer` or `other`, with a confidence.
+2. **Each category has its own threshold**, chosen by the trainer so that, on emails it didn't train on, no
+   assessment, interview or offer is filed as a receipt, rejection or non-job email. Below the threshold the email is
+   recorded as **`review`** and shows on the dashboard for a look, instead of being guessed.
+3. **Optional AI second opinion** for `review` emails only: set `AI_KEY` and `AI_FALLBACK=true`. A fast model answers,
+   a stronger one when the first is unsure or its quoted evidence isn't in the email. Emails that try to instruct the
+   AI are never sent to it. Without a trained model, the AI (if a key is set) classifies everything.
+4. **Code does the rest:** company and role from the sender and subject, deadlines from the email's own words
+   ("within 7 days of receiving this email") with the date math done from when it arrived, and "needs action" for
+   assessments, interviews, offers and anything with a deadline.
+5. **If nothing can classify an email** (no model yet, AI outage), it isn't recorded and is retried next run.
 
-Internal, written by the script: `LAST_MAIL_STAMP`, `LAST_CLEAN_RUN` (so runs with no new mail exit in about a second and later runs only search mail since the last run).
+## Script Properties
+| Property | What it is |
+|---|---|
+| `SPREADSHEET_ID` | Created by `setup()`. The tracker sheet; also the record of what's been processed. |
+| `FEED_TOKEN` | Created by `setup()`. The web app feed only answers requests carrying it. |
+| `AI_KEY` | Optional. An OpenAI-compatible key (`NIM_KEY` also works). |
+| `AI_FALLBACK` | Optional. `true` = send emails the trained model isn't sure about to the AI. |
+| `AI_BASE_URL`, `AI_FAST_MODEL`, `AI_STRONG_MODEL` | Optional. Default NVIDIA NIM and `nvidia/nemotron-3.5-bolt-e4b` / `nvidia/nemotron-3-ultra-550b-a55b`. |
 
-(`PROCESSED_MESSAGE_IDS` from earlier versions is no longer used and can be deleted.)
+Written by the script: `LAST_MAIL_STAMP`, `LAST_CLEAN_RUN` (so idle runs exit in about a second and later runs only
+search mail since the last run), `EXPORT_CURSOR` (while an export is unfinished).
 
-## NVIDIA NIM key (optional, for the AI fallback)
-1. Go to build.nvidia.com, sign in, open the `meta/llama-3.1-8b-instruct` model and click **Get API Key**. It starts with `nvapi-`.
-2. In the Apps Script editor: **Project Settings** (gear icon) → **Script Properties** → **Add script property** → name `NIM_KEY`, value your key → **Save**.
-3. Never put the key in a file in this repo.
+## Functions you run from the editor
+- `setup()`: once. Creates the sheet and token, prints the token, says whether a trained model is present.
+- `exportTrainingEmails()`: your last 6 months of mail into a "Training export" tab, for training.
+- `processInbox()`: one run now (also what the trigger runs).
+- `installTrigger()` / `removeTrigger()`: run every 5 minutes / stop.
 
-Without a key, emails the rules can't decide get a `Jobs/Review` label (no star, no AI call).
+Step-by-step guide including training and the Chrome extension: [`../SETUP.md`](../SETUP.md).
 
-To run the blind test against the real model on your machine (only the fake test emails are sent):
-```powershell
-$env:NIM_KEY = "nvapi-..."; node tests/holdout.test.js
-```
-The variable lasts only for that terminal window.
-
-## Setup
-Full click-by-click guide, including the web app and the Chrome extension: [`../SETUP.md`](../SETUP.md). In short:
-1. Run `setup()` once (creates the sheet and the feed token, prints the token).
-2. Add `NIM_KEY` if you want the AI fallback.
-3. Run `processInbox` once and check the log (`[rule]`, `[ai]`, `[guardrail_override]` lines show who decided).
-4. Run `installTrigger` to process new mail every 5 minutes. `removeTrigger` stops it.
-5. Deploy as a web app (execute as Me, access Anyone) for the extension. `doGet(?token=…)` returns the sheet as JSON; `&action=refresh` processes new mail first.
-
-## Tests
-From the repo root, with Google services stubbed out:
-- `node tests/rules.test.js`: sample emails, including the Palantir "thank you for applying… within 7 days" email. Must all pass.
-- `node tests/adversarial.test.js`: 91 tricky emails (fake rejections, offers, deadlines, prompt injection). A report; known failures are listed.
-- `node tests/stress.test.js`: full `processInbox` runs against a fake inbox with hundreds of emails, threads, failures and repeated runs. A report.
-- `node tests/holdout.test.js`: 60 emails written blind (without seeing the rules). A report; uses the real AI if `NIM_KEY` is set in the terminal.
+## Tests (from the repo root)
+- `node tests/pipeline.test.js`: the decision logic with a fake trained model and a fake AI.
+- `node tests/model.test.js`: `ModelCore.gs` features and prediction, identical in Node and Apps Script.
+- `node tests/stress.test.js`: full runs against a fake Gmail that throws on any write (hundreds of emails, paging,
+  locking, failures, the training export, the fixture model end to end).
+- `node trainer/train.js --synthetic`: trains the test fixture on the hand-written emails in `tests/` and prints its accuracy.
+- `node tests/eval-models.js --synthetic`: the optional AI against a real provider (needs `$env:AI_KEY`).

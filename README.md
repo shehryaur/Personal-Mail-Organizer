@@ -71,11 +71,11 @@ flowchart TD
    - **AI Failure Mode Deep Dive:** Highlights where the LLM hallucinated rejection and how deterministic regex caught the Calendly link to protect the candidate.
    - **Human-in-the-Loop Rule Synthesizer:** User corrections are instantly converted into permanent deterministic rules so the AI never repeats the same error.
 
-### B. In-Gmail Action Banner (`extension/`)
-Manifest V3 Chrome extension that injects an action banner directly into Gmail, highlighting impending deadlines without requiring the user to leave their inbox.
+### B. Job Tracker inside Gmail (`extension/`)
+Manifest V3 Chrome extension (InboxSDK) that adds **Job Tracker** to Gmail's sidebar. Clicking it shows the dashboard in the same tab: counts per stage, a to-do list with deadlines, weekly counts and a stage board of every application. Clicking an item opens the real email.
 
-### C. Google Apps Script Ingestion (`apps-script/`)
-Background ingestion script running on a 10-minute trigger, checking candidate emails, applying Gmail labels (`Jobs/*`), starring actionable threads, auto-archiving clean rejections, and logging to a Google Sheet.
+### C. Google Apps Script (`apps-script/`)
+Runs every 5 minutes with **read-only** Gmail access (it can't label, star or archive). A small classifier trained on my own labelled mail (`trainer/train.js` → `Model.gs`) sorts each email; anything it isn't sure about is marked `review` instead of guessed. Code works out companies and deadlines ("within 7 days of receiving this email" → a real date) and writes one row per email to a Google Sheet, which the dashboard reads.
 
 ---
 
