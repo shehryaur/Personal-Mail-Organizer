@@ -175,5 +175,23 @@ r = run('Riley <riley@acme.com>', 'Re: Product Designer', 'are you free Thu?', {
 } });
 check('AI: reply in a thread that already has job emails is read in context', r, { stage: 'interview' });
 
+// ---------------------------------------------------------------- company names
+const co = vm.runInContext('extractCompanyFromSender', ctx);
+[
+  ['HEARTLAND BUSINESS SYSTEMS LLC <do-not-reply@mail.paylocity.com>', 'Heartland Application Update', '', 'Heartland'],
+  ['"James & James LLC" <do-not-reply@mail.paylocity.com>', 'Thank you for applying!', '', 'James & James'],
+  ['no-reply_PecoFoods@ultipro.com', 'Thank you for your interest in Peco Foods!', '', 'Peco Foods'],
+  ['no-reply@us.greenhouse-mail.io', 'Thank You for Applying to Waymo!', '', 'Waymo'],
+  ['Handshake <handshake@notifications.joinhandshake.com>', 'Application sent to Ambia Solar — here\'s what\'s next', '', 'Ambia Solar'],
+  ['Tsenta Inbox <inbox@mail.tsenta.com>', 'H.B. Fuller Application Update', '', 'H.B. Fuller'],
+  ['"Liberty Mutual @ icims" <libertymutual+auto@icims.com>', 'Your job application is incomplete!', '', 'Liberty Mutual'],
+  ['x@paylocity.com', 'Thank you for applying!', 'Thank you for your interest in joining Innotec. We have received it.', 'Innotec'],
+  ['"Tyler Technologies Talent" <careers@tylertech.com>', 'Thanks', '', 'Tyler Technologies'],
+  ['no-reply@us.greenhouse-mail.io', 'Thank you for your interest in the Software Engineering Intern role', '', null],
+].forEach(([from, subject, body, want]) => {
+  const got = co(from, subject, body);
+  check(`company: "${subject.slice(0, 40)}" from ${from.slice(0, 30)} -> ${want}`, { got }, { got: want });
+});
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

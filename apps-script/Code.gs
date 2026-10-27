@@ -19,10 +19,38 @@ const CONFIG = {
     'smartrecruiters.com',
     'workable.com',
     'workablemail.com',
-    'icims.com'
+    'icims.com',
+    'paylocity.com',
+    'ultipro.com',
+    'ukg.com',
+    'ukg.net',
+    'adp.com',
+    'bamboohr.com',
+    'rippling.com',
+    'jobvite.com',
+    'careerplug.com',
+    'applytojob.com',
+    'brassring.com',
+    'oraclecloud.com',
+    'dayforcehcm.com',
+    'paycomonline.net',
+    'successfactors.com',
+    'taleo.net',
+    'recruitee.com',
+    'breezy.hr',
+    'pinpointhq.com',
+    'teamtailor.com',
+    'newtonsoftware.com',
+    'jobs2web.com',
+    'applicant-tracking.com',
+    'clinchtalent.com',
+    'avature.net',
+    'phenompeople.com',
+    'myworkdaysite.com',
+    'ns2cloud.com'
   ],
   // Platforms that relay mail for someone else: company comes from the subject/body
-  RELAY_DOMAINS: ['linkedin.com', 'indeed.com', 'wellfound.com', 'google.com'],
+  RELAY_DOMAINS: ['linkedin.com', 'indeed.com', 'wellfound.com', 'google.com', 'joinhandshake.com', 'tsenta.com', 'starred.com', 'simplify.jobs', 'jobright.ai'],
   // Sender names that are the ATS itself, never the hiring company
   ATS_NAMES: /^(greenhouse|lever|ashby|workday|smartrecruiters|workable|icims)$/i,
   // Words recruiters append to the company in the From display name
@@ -290,6 +318,32 @@ function processNewMail(sinceSec) {
     retry + ' to retry, ' + threads.length + ' threads searched (' + searchWindow + ')' +
     (skippedForTime ? ', stopped early for time' : ''));
   return { recorded: done, failed: failed, retry: retry, stoppedForTime: skippedForTime };
+}
+
+/**
+ * Run from the editor after updating the company detection: recalculates the
+ * Company and Application ID of every row already in the Sheet from the sender,
+ * subject and snippet stored there (no Gmail reads). Safe to run again.
+ */
+function fixCompanies() {
+  const sheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (!sheetId) throw new Error('Run setup() first.');
+  const sheet = SpreadsheetApp.openById(sheetId).getSheets()[0];
+  const data = sheet.getDataRange().getValues();
+  const col = name => CONFIG.SHEET_HEADERS.indexOf(name);
+  let changed = 0;
+  const out = data.slice(1).map(row => {
+    const stage = String(row[col('Stage')]);
+    if (stage === 'not_job') return [row[col('Company')], row[col('Application ID')]];
+    const company = extractCompanyFromSender(String(row[col('Sender')]), String(row[col('Subject')]), String(row[col('Snippet')])) || 'Unknown Company';
+    if (company !== row[col('Company')]) changed++;
+    return [company, generateApplicationId(company, String(row[col('Role')]))];
+  });
+  if (out.length) {
+    sheet.getRange(2, col('Company') + 1, out.length, 1).setValues(out.map(r => [r[0]]));
+    sheet.getRange(2, col('Application ID') + 1, out.length, 1).setValues(out.map(r => [r[1]]));
+  }
+  Logger.log('Companies recalculated: ' + changed + ' of ' + out.length + ' rows changed.');
 }
 
 /**
@@ -907,70 +961,131 @@ function resolveRelativeDeadline(text, emailDate) {
  * Helpers
  */
 /**
- * Company from a From header like `"Stripe Recruiting" <no-reply@us.greenhouse-mail.io>`.
- * ATS mail comes from the ATS's domain, so for those we read the display name,
- * then the Workday mailbox name (stripe@myworkday.com), then the subject.
+ * The hiring company for an email. Mail from hiring platforms (Greenhouse,
+ * Paylocity, Handshake, Workday, …) comes from the platform's domain, so for
+ * those the employer is read from the subject ("Thank you for your interest in
+ * Peco Foods"), the sender's display name ("HEARTLAND BUSINESS SYSTEMS LLC"),
+ * or the mailbox name (no-reply_PecoFoods@ultipro.com), never the domain.
  * Everyone else: the company is the sender's own domain.
  */
 function extractCompanyFromSender(from, subject, body) {
   const addrMatch = from.match(/<?([^<>\s@]+)@([a-zA-Z0-9.-]+)>?\s*$/);
-  if (!addrMatch) return extractCompanyFromSubject(subject);
+  if (!addrMatch) return extractCompanyFromSubject(subject) || companyFromDisplayName(from);
 
-  const localPart = addrMatch[1].toLowerCase();
+  const localPart = addrMatch[1];
   const domain = addrMatch[2].toLowerCase();
-  const isATS = CONFIG.ATS_DOMAINS.some(d => domain === d || domain.endsWith('.' + d));
-  const isRelay = CONFIG.RELAY_DOMAINS.some(d => domain === d || domain.endsWith('.' + d));
+  const onDomain = list => list.some(d => domain === d || domain.endsWith('.' + d));
+  const isPlatform = onDomain(CONFIG.ATS_DOMAINS) || onDomain(CONFIG.RELAY_DOMAINS);
 
-  // Calendar invites: the organizer's company
-  const organizer = /Organizer:\s*[^\s@]+@([a-zA-Z0-9.-]+)/i.exec(body || '');
-  if (isRelay && organizer) return titleCase(registrableName(organizer[1].toLowerCase()));
-  // LinkedIn, Indeed, …: the company is named in the subject, not the sender
-  if (isRelay) return extractCompanyFromSubject(subject) || companyFromDisplayName(from);
-
-  if (!isATS) {
+  if (!isPlatform) {
     if (/^(gmail|googlemail|outlook|hotmail|yahoo|icloud|proton|protonmail)\./.test(domain)) {
       // A recruiter on a personal address: their own name is not the company
       return extractCompanyFromSubject(subject) || companyFromDisplayName(from);
     }
+    // "Tyler Technologies" <careers@tylertech.com>: the display name, when it is
+    // clearly the same company as the domain; otherwise the domain
+    const fromName = companyFromDisplayName(from);
+    const compact = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const reg = compact(registrableName(domain));
+    if (fromName && reg.length >= 3 && (compact(fromName).indexOf(reg) !== -1 || reg.indexOf(compact(fromName)) === 0)) return fromName;
     return titleCase(registrableName(domain));
   }
 
-  // ATS mail: the subject names the company more reliably than a recruiter's name
-  const fromSubject = extractCompanyFromSubject(subject);
-  if (fromSubject) return fromSubject;
-  const fromName = companyFromDisplayName(from);
-  if (fromName) return fromName;
+  // Calendar invites through Google: the organizer's company
+  const organizer = /Organizer:\s*[^\s@]+@([a-zA-Z0-9.-]+)/i.exec(body || '');
+  if (organizer && !/gmail|googlemail/.test(organizer[1])) return titleCase(registrableName(organizer[1].toLowerCase()));
+  // Forwarding inboxes (Tsenta) name the original sender in the body
+  const forwarded = /Sent From:\s*([^\s@]+)@([a-zA-Z0-9.-]+)/i.exec(body || '');
 
-  if (/myworkday(jobs)?\.com$/.test(domain) && !/^(no-?reply|do-?not-?reply|notifications?)$/.test(localPart)) {
-    return titleCase(localPart);
+  return extractCompanyFromSubject(subject) ||
+    companyFromDisplayName(from) ||
+    (forwarded ? companyFromMailbox(forwarded[1], forwarded[2]) : null) ||
+    extractCompanyFromSubject(String(body || '').slice(0, 400)) ||
+    companyFromMailbox(localPart, domain);
+}
+
+// Words that are never a company name on their own
+const NOT_A_COMPANY = /^(the|our|your|my|this|that|a|an|us|you|we|me|it|team|company|position|role|job|jobs|internship|intern|program|application|applications|candidate|careers?|recruiting|hiring|talent|people|hr|update|status|thank|thanks|thank you|hello|hi|welcome|new|next|re|fwd|action required|application received|application update|application status|congratulations|reminder|important|urgent|interview|assessment|offer|invitation|confirmation|summer|fall|spring|winter|\d{4})$/i;
+// Hiring platforms by name, so "Paylocity" or "Workday" is never the employer
+const PLATFORM_NAMES = /^(?:dayforce hcm|oracle cloud hcm|workday inc|greenhouse|lever|ashby|workday|smartrecruiters|workable|icims|paylocity|ultipro|ukg|adp|bamboohr|bamboo hr|rippling|jobvite|careerplug|jazzhr|applytojob|brassring|oracle cloud|oraclecloud|dayforce|paycom|successfactors|taleo|handshake|joinhandshake|tsenta|tsenta inbox|starred|indeed|indeed apply|indeedapply|linkedin|simplify|jobright|recruitee|breezy|pinpoint|teamtailor|workflow|notifications?|no-?reply|do not reply)$/i;
+
+function cleanCompany(name) {
+  if (!name) return null;
+  let n = String(name)
+    .replace(/\(do not reply\)/ig, '')
+    .replace(/\s+(?:via|@)\s+.*$/i, '')
+    .replace(/[™®]/g, '')
+    .replace(/[|,\-–—:!.]+\s*$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  n = stripCompanySuffix(n);
+  // HEARTLAND BUSINESS SYSTEMS -> Heartland Business Systems (short acronyms like BDO stay)
+  if (n.length > 4 && n === n.toUpperCase() && /[A-Z]{3}/.test(n)) {
+    n = n.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
   }
-
-  return extractCompanyFromSubject(subject);
+  if (!n || n.length < 2 || n.length > 50 || NOT_A_COMPANY.test(n) || PLATFORM_NAMES.test(n)) return null;
+  return n;
 }
 
 function companyFromDisplayName(from) {
   const nameMatch = from.match(/^\s*"?([^"<]+?)"?\s*</);
   if (!nameMatch) return null;
-  let name = nameMatch[1].replace(/\s+via\s+.*$/i, '');
+  let name = nameMatch[1].replace(/\s+via\s+.*$/i, '').replace(/\s+@\s+.*$/, '');
   // "Jane Doe at Stripe" / "Jane from Stripe" -> Stripe
-  const atMatch = name.match(/\s(?:at|from|@)\s+(.+)$/i);
+  const atMatch = name.match(/\s(?:at|from)\s+(.+)$/i);
   if (atMatch) name = atMatch[1];
   name = name
     .replace(CONFIG.SENDER_NAME_NOISE, '')
     .replace(/[|,\-–]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  name = stripCompanySuffix(name);
-  if (!name || CONFIG.ATS_NAMES.test(name)) return null;
-  return name;
+  return cleanCompany(name);
 }
 
+// no-reply_PecoFoods@ultipro.com -> Peco Foods, faithtechnologies@myworkday.com ->
+// Faithtechnologies. Generic mailboxes (no-reply, careers, …) give nothing.
+function companyFromMailbox(localPart, domain) {
+  const parts = String(localPart).split(/[_+.]/).filter(p => p && !/^(no-?reply|do-?not-?reply|donotreply|noreply|notifications?|notify|jobs?|careers?|recruit(?:ing|ment)?|talent|hr|hiring|info|hello|support|inbox|email|mail|system|sender|fa|auto\w*|candidates?|applicants?)$/i.test(p));
+  const pick = parts.find(p => /[a-z]{3}/i.test(p) && !/\d{3}/.test(p));
+  if (!pick) return null;
+  // ...unless the mailbox is just the platform's own name
+  if (domain && domain.toLowerCase().indexOf(pick.toLowerCase()) !== -1) return null;
+  return cleanCompany(pick.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase()));
+}
+
+const COMPANY_WORD = "[A-Za-z\\u00C0-\\u024F][\\w\\u00C0-\\u024F&.'’+-]*";
+const COMPANY_NAME = COMPANY_WORD + '(?:\\s+(?:&\\s+|of\\s+|and\\s+)?' + COMPANY_WORD + '){0,4}';
+const SUBJECT_COMPANY = [
+  // "Thank you for your interest in Peco Foods!", "Thanks for applying to Scale AI",
+  // "Application sent to Ambia Solar", "Thanks from Attentive", "Update from Waymo"
+  new RegExp("\\b(?:interest in|applying (?:to|at|with|for)|applied (?:to|at|with)|application (?:to|at|with)|apply(?:ing)? (?:to|at)|sent to|joining|from|with|at)\\s+(?:the\\s+)?(" + COMPANY_NAME + ')', 'i'),
+  // "Heartland Application Update", "NIKE - Application Update", "FTI Application Under Review"
+  new RegExp('^\\s*(' + COMPANY_NAME + ')\\s*[-:|–]?\\s*(?:Job\\s+)?(?:Application|Interview|Assessment|Offer)\\b'),
+  // "Inversion Space: Thank You for Applying!", "Mirakl | Business Development Intern"
+  new RegExp('^\\s*(' + COMPANY_NAME + ')\\s*[:|]\\s+\\S'),
+  // "Cedars-Sinai Careers: We've received …"
+  new RegExp('^\\s*(' + COMPANY_NAME + ')\\s+Careers\\b'),
+  // "Interview with Acme"
+  new RegExp('\\b(?:interview|chat|call|conversation)\\s+with\\s+(' + COMPANY_NAME + ')', 'i')
+];
+
 function extractCompanyFromSubject(subject) {
-  const match = (subject || '').match(
-    /\b(?:applying|application|applied|interest)\s+(?:to|at|with|in)\s+([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3})/
-  ) || (subject || '').match(/\b(?:interview|chat|call|conversation)\s+with\s+([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3})/i)
-    || (subject || '').match(/\bat\s+([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3})/);
-  return match ? stripCompanySuffix(match[1].replace(/[.!]+$/, '').trim()) : null;
+  for (const re of SUBJECT_COMPANY) {
+    const m = re.exec(String(subject || ''));
+    if (!m) continue;
+    // A job title, not a company: "interest in the Software Engineering Intern"
+    if (/\s(?:intern|internship|engineer|designer|analyst|manager|associate|developer|scientist|specialist|coordinator|assistant|position|role)\b/i.test(m[1]) &&
+      !/^[A-Z]/.test(m[1].split(/\s+/).pop() || '')) continue;
+    if (/\b(?:intern|internship|engineer|designer|analyst|associate|developer|scientist|position|role)\s*$/i.test(m[1].replace(/[^\w\s]+$/, ''))) continue;
+    // Trim trailing words that belong to the sentence, not the name; stop at the sentence's end
+    const candidate = m[1]
+      .split(/(?<![A-Z])[.!?]\s/)[0] // "Innotec. We've…" ends the name; "H.B. Fuller" doesn't
+      .replace(/^(?:joining|join|our|the)\s+/i, '')
+      .replace(/\s+(?:for|position|role|team|program|internship|intern|application|update|is|has|was|on|in|to|at|-)\b.*$/i, '');
+    const c = cleanCompany(candidate);
+    if (c) return c;
+  }
+  return null;
 }
 
 // "Ramp, Inc." / "Visa Inc." -> "Ramp" / "Visa"
