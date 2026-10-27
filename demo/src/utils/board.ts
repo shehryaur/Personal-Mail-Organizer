@@ -2,8 +2,9 @@
 // emails: counts per stage, the to-do list, weekly counts and the stage board.
 // Counts only: no rates or averages (deliberate: the dashboard replaces reading
 // the emails, it isn't an analytics page).
-import type { Application, Email } from '../types';
+import type { Application } from '../types';
 import { GHOSTED_AFTER_DAYS } from './ghosting';
+import { asksForAction } from './todo';
 
 export type Lane = 'applied' | 'assessment' | 'interview' | 'offer' | 'rejected' | 'review';
 
@@ -73,8 +74,10 @@ function cardFor(app: Application, now: number): Card {
   if (newestDecided && newestDecided.stage === 'rejected') lane = 'rejected';
   else if (decided.length) lane = [...PROGRESS].reverse().find(l => reached.has(l)) || 'applied';
 
+  // Only deadlines of emails that ask me to do something count; a date mentioned
+  // in an update or a rejection is not a deadline
   const upcoming = emails
-    .filter(e => e.stage !== 'review' && e.deadlineResolved && new Date(e.deadlineResolved).getTime() > now)
+    .filter(e => asksForAction(e) && e.deadlineResolved && new Date(e.deadlineResolved).getTime() > now)
     .sort((a, b) => a.deadlineResolved!.localeCompare(b.deadlineResolved!))[0];
   const daysQuiet = Math.floor((now - new Date(newest.receivedAt).getTime()) / DAY);
   const ghosted = lane === 'applied' && emails.every(e => e.stage === 'applied') && daysQuiet >= GHOSTED_AFTER_DAYS;
@@ -107,23 +110,28 @@ function cardFor(app: Application, now: number): Card {
   };
 }
 
+// A to-do is the company's latest email that asks me to do something, unless
+// a later email closed it (a rejection, "thanks for completing", "thanks for
+// interviewing"). With a date: until the date. Without one: for 14 days.
+// Applications waiting for a reply are never to-dos (the board shows them).
+const UNDATED_TODO_DAYS = 14;
+
 function taskFor(card: Card, now: number): Task | null {
-  const email = card.app.emails.find(e => e.id === card.openEmailId) as Email;
-  // Rejections need nothing; unsure emails are listed apart, never as to-dos
-  if (card.lane === 'rejected' || card.lane === 'review' || email.stage === 'review') return null;
-  if (card.deadline) {
-    const left = countdown(card.deadline, now) || 'Today';
-    return { card, when: left, tone: new Date(card.deadline).getTime() - now < 3 * DAY ? 'hot' : 'plain', what: email.subject, detail: `Due ${dayTime(card.deadline)}` };
+  if (card.lane === 'rejected' || card.lane === 'review') return null;
+  const emails = [...card.app.emails].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  const asks = emails.find(asksForAction);
+  if (!asks) return null;
+  const later = emails.filter(e => e.receivedAt > asks.receivedAt && e.stage !== 'review');
+  if (later.some(e => e.stage === 'rejected' || (e.stage === asks.stage && !asksForAction(e)))) return null;
+
+  const due = asks.deadlineResolved ? new Date(asks.deadlineResolved).getTime() : null;
+  if (due !== null) {
+    if (due <= now) return null; // the date has passed: done or missed either way
+    return { card: { ...card, openEmailId: asks.id }, when: countdown(asks.deadlineResolved!, now) || 'Today',
+      tone: due - now < 3 * DAY ? 'hot' : 'plain', what: asks.subject, detail: `Due ${dayTime(asks.deadlineResolved!)}` };
   }
-  if (card.ghostedDays !== null) {
-    return { card, when: 'Follow up', tone: 'warn', what: `No reply in ${card.ghostedDays} days. Send a follow-up?`, detail: `Applied ${card.lastEmail}` };
-  }
-  // A deadline that has passed is done or missed either way: not a to-do any more
-  if (email.deadlineResolved && new Date(email.deadlineResolved).getTime() <= now) return null;
-  if (email.actionNeeded && now - new Date(email.receivedAt).getTime() < 30 * DAY) {
-    return { card, when: 'No date', tone: 'plain', what: email.subject, detail: `Received ${day(email.receivedAt)}` };
-  }
-  return null;
+  if (now - new Date(asks.receivedAt).getTime() > UNDATED_TODO_DAYS * DAY) return null;
+  return { card: { ...card, openEmailId: asks.id }, when: 'No date', tone: 'plain', what: asks.subject, detail: `Received ${day(asks.receivedAt)}` };
 }
 
 export function buildBoard(applications: Application[], now: number): Board {

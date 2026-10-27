@@ -77,6 +77,16 @@ function syntheticExamples() {
   return out;
 }
 
+// trainer/synthetic/*.js: more hand-written emails (other languages, odd wording,
+// keywords pointing the wrong way). Training only; tests/edge-cases.js stays unseen.
+function extraWrittenExamples() {
+  const dir = path.join(ROOT, 'trainer', 'synthetic');
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(f => f.endsWith('.js')).flatMap(f =>
+    require(path.join(dir, f)).emails.filter(e => CLASSES.includes(e.label))
+      .map(e => ({ from: e.from, subject: e.subject, body: e.body, labels: [], label: e.label })));
+}
+
 function realExamples() {
   const exportPath = arg('--export');
   const labelsPath = arg('--labels');
@@ -101,7 +111,7 @@ function realExamples() {
 const examples = synthetic ? syntheticExamples() : realExamples();
 // --with-synthetic: the hand-written test emails join every training set (never a
 // test set), adding interview/assessment/offer examples that real mail has few of
-const extra = !synthetic && args.includes('--with-synthetic') ? syntheticExamples() : [];
+const extra = !synthetic && args.includes('--with-synthetic') ? syntheticExamples().concat(extraWrittenExamples()) : [];
 const K = CLASSES.length;
 examples.concat(extra).forEach(e => { e.y = CLASSES.indexOf(e.label); e.tokens = core.emailTokens(e); });
 if (extra.length) console.log(`+ ${extra.length} hand-written emails, used for training only`);
