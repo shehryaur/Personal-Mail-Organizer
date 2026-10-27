@@ -118,6 +118,8 @@ function taskFor(card: Card, now: number): Task | null {
   if (card.ghostedDays !== null) {
     return { card, when: 'Follow up', tone: 'warn', what: `No reply in ${card.ghostedDays} days. Send a follow-up?`, detail: `Applied ${card.lastEmail}` };
   }
+  // A deadline that has passed is done or missed either way: not a to-do any more
+  if (email.deadlineResolved && new Date(email.deadlineResolved).getTime() <= now) return null;
   if (email.actionNeeded && now - new Date(email.receivedAt).getTime() < 30 * DAY) {
     return { card, when: 'No date', tone: 'plain', what: email.subject, detail: `Received ${day(email.receivedAt)}` };
   }
@@ -139,29 +141,34 @@ export function buildBoard(applications: Application[], now: number): Board {
   const offer = inLane('offer')[0];
   const ghosted = cards.filter(c => c.ghostedDays !== null).length;
   const assessmentsOpen = inLane('assessment').filter(c => c.deadline || c.chip.kind === 'info').length;
+  // Applications and rejections are counted per email (one per role: seven roles
+  // at one company are seven applications); the rarer stages per company
+  const emailsOf = (stage: Lane) => cards.reduce((n, c) => n + c.app.emails.filter(e => e.stage === stage).length, 0);
   const counts: Board['counts'] = [
-    { key: 'applied', label: 'Applied', count: reachedCount('applied'), note: `${inLane('applied').length} waiting${ghosted ? `, ${ghosted} with no reply` : ''}` },
+    { key: 'applied', label: 'Applied', count: emailsOf('applied'), note: `${cards.length} companies, ${inLane('applied').length} waiting${ghosted ? `, ${ghosted} silent` : ''}` },
     { key: 'assessment', label: 'Assessments', count: reachedCount('assessment'), note: assessmentsOpen ? `${assessmentsOpen} to finish` : 'None open' },
     { key: 'interview', label: 'Interviews', count: reachedCount('interview'), note: nextInterview ? `Next: ${nextInterview.app.company}, ${day(nextInterview.deadline!)}` : `${inLane('interview').length} in progress` },
     { key: 'offer', label: 'Offers', count: reachedCount('offer'), note: offer ? (offer.deadline ? `Decide by ${day(offer.deadline)}` : offer.app.company) : 'None yet' },
-    { key: 'rejected', label: 'Rejections', count: inLane('rejected').length, note: 'Closed' },
+    { key: 'rejected', label: 'Rejections', count: emailsOf('rejected'), note: `${inLane('rejected').length} companies closed` },
   ];
 
   const order = { hot: 0, plain: 1, warn: 2 };
   const tasks = cards.map(c => taskFor(c, now)).filter((t): t is Task => !!t)
     .sort((a, b) => (a.card.deadline || '9').localeCompare(b.card.deadline || '9') || order[a.tone] - order[b.tone]);
 
-  // Per week, last 12 weeks: when each company first reached each stage
+  // Per week, last 12 weeks: applications sent (every receipt), and when each
+  // company first sent an assessment or interview
   const weekStart = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d.getTime(); };
   const thisWeek = weekStart(now);
   const starts = Array.from({ length: 12 }, (_, i) => thisWeek - (11 - i) * 7 * DAY);
   const series = (stage: Lane) => {
     const out = starts.map(() => 0);
     cards.forEach(c => {
-      const first = [...c.app.emails].filter(e => e.stage === stage).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt))[0];
-      if (!first) return;
-      const i = starts.indexOf(weekStart(new Date(first.receivedAt).getTime()));
-      if (i !== -1) out[i]++;
+      const ofStage = [...c.app.emails].filter(e => e.stage === stage).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
+      (stage === 'applied' ? ofStage : ofStage.slice(0, 1)).forEach(e => {
+        const i = starts.indexOf(weekStart(new Date(e.receivedAt).getTime()));
+        if (i !== -1) out[i]++;
+      });
     });
     return out;
   };

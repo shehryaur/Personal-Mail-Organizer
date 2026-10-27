@@ -41,6 +41,19 @@ function deadlineIso(v: string): string | null {
   return new Date(+m[1], +m[2] - 1, +m[3], 23, 59).toISOString();
 }
 
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+// An interview's date from a calendar-style subject, "@ Tue Nov 3, 2026 11:30am"
+// (rows recorded before the script read event dates have none). Local time.
+function interviewDate(subject: string, receivedIso: string): string | null {
+  const m = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b(?:,?\s+(\d{4}))?(?:\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm))?/i.exec(subject || '');
+  if (!m) return null;
+  const received = new Date(receivedIso);
+  let hour = m[4] ? +m[4] % 12 + (/pm/i.test(m[6]) ? 12 : 0) : 23;
+  const d = new Date(m[3] ? +m[3] : received.getFullYear(), MONTHS.indexOf(m[1].toLowerCase()), +m[2], hour, m[5] ? +m[5] : m[4] ? 0 : 59);
+  return d.getTime() >= received.getTime() - 86400000 ? d.toISOString() : null;
+}
+
 function senderDomain(from: string): string {
   return ((from.match(/@([a-zA-Z0-9.-]+)/) || [])[1] || '').toLowerCase();
 }
@@ -62,7 +75,7 @@ function toEmail(it: FeedItem, appId: string): Email {
     role: it.role || '',
     stage,
     deadlineRaw: it.deadline_raw || null,
-    deadlineResolved: deadlineIso(it.deadline),
+    deadlineResolved: deadlineIso(it.deadline) || (stage === 'interview' ? interviewDate(it.subject || '', it.date) : null),
     actionNeeded: action,
     confidence: Number(it.confidence) || 0,
     decisionSource: /^ai|\+ai/.test(it.source) ? 'ai' : it.source === 'injection_guard' ? 'guardrail_override' : 'rule',
