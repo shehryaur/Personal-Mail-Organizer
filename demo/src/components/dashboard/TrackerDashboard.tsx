@@ -1,9 +1,10 @@
 // The Job Tracker dashboard: counts per stage, the to-do list, weekly counts and
 // every application on a stage board. Same component in Gmail (extension) and
 // in the reviewers' demo. Design: prototype/job-tracker.html.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { Application } from '../../types';
 import { buildBoard, type Lane } from '../../utils/board';
+import { loadDone, saveDone } from '../../utils/doneStore';
 import { Icon } from '../Icon';
 import './tracker.css';
 
@@ -29,6 +30,15 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
   const board = useMemo(() => buildBoard(applications, now), [applications, now]);
   const [focus, setFocus] = useState<Lane | null>(null);
   const [chart, setChart] = useState<Chart>('applied');
+  const [done, setDone] = useState<string[]>([]);
+  useEffect(() => { loadDone().then(setDone); }, []);
+  const toggleDone = (emailId: string) => {
+    const next = done.includes(emailId) ? done.filter(id => id !== emailId) : done.concat(emailId);
+    setDone(next);
+    saveDone(next);
+  };
+  const openTasks = board.tasks.filter(t => !done.includes(t.card.openEmailId));
+  const doneTasks = board.tasks.filter(t => done.includes(t.card.openEmailId));
 
   const series = board.weekly[chart];
   const max = Math.max(1, ...series);
@@ -76,20 +86,40 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
         <div className="tk-card">
           <div className="tk-card-head">
             <h2>To do</h2>
-            <span className="aside">{board.tasks.length ? `${board.tasks.length} things, soonest first` : 'Nothing waiting on you'}</span>
+            <span className="aside">{openTasks.length ? `${openTasks.length} things, soonest first` : 'Nothing waiting on you'}</span>
           </div>
           <div className="tk-todo">
-            {board.tasks.length === 0 && <div className="tk-empty">No deadlines or requests right now.</div>}
-            {board.tasks.map(t => (
-              <button key={t.card.app.id} className="tk-task" onClick={() => onOpenEmail(t.card.openEmailId)}>
-                <span className={`tk-when${t.tone === 'plain' ? '' : ' ' + t.tone}`}>{t.when}</span>
-                <span className="what">
-                  <b>{t.card.app.company}</b>
-                  <small>{t.what} · {t.detail}</small>
-                </span>
-                <span className="go"><span>Open email</span><Icon name="arrow_forward" size={16} /></span>
-              </button>
+            {openTasks.length === 0 && <div className="tk-empty">No deadlines or requests right now.</div>}
+            {openTasks.map(t => (
+              <div key={t.card.app.id} className="tk-task">
+                <button className="tk-check" role="checkbox" aria-checked="false" onClick={() => toggleDone(t.card.openEmailId)}
+                  aria-label={`Mark ${t.card.app.company} done`} title="Mark done" />
+                <button className="tk-task-open" onClick={() => onOpenEmail(t.card.openEmailId)}>
+                  <span className={`tk-when${t.tone === 'plain' ? '' : ' ' + t.tone}`}>{t.when}</span>
+                  <span className="what">
+                    <b>{t.card.app.company}</b>
+                    <small>{t.what} · {t.detail}</small>
+                  </span>
+                  <span className="go"><span>Open email</span><Icon name="arrow_forward" size={16} /></span>
+                </button>
+              </div>
             ))}
+            {doneTasks.length > 0 && (
+              <details className="tk-done">
+                <summary>Done ({doneTasks.length})</summary>
+                {doneTasks.map(t => (
+                  <div key={t.card.app.id} className="tk-task done">
+                    <button className="tk-check on" role="checkbox" aria-checked="true" onClick={() => toggleDone(t.card.openEmailId)}
+                      aria-label={`Mark ${t.card.app.company} not done`} title="Mark not done">
+                      <Icon name="check" size={18} />
+                    </button>
+                    <button className="tk-task-open" onClick={() => onOpenEmail(t.card.openEmailId)}>
+                      <span className="what"><b>{t.card.app.company}</b><small>{t.what}</small></span>
+                    </button>
+                  </div>
+                ))}
+              </details>
+            )}
           </div>
         </div>
 

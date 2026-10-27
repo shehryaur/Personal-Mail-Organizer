@@ -50,8 +50,16 @@
 .tk-row2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px }
 .tk-row2 > .tk-card { display: flex; flex-direction: column }
 .tk-todo { display: flex; flex-direction: column; gap: 8px }
-.tk-task { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 16px; background: var(--tk-lane); width: 100% }
+.tk-task { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--tk-lane); width: 100% }
 .tk-task:hover { background: #ededE8 }
+.tk-task-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px }
+.tk-check { flex: none; width: 28px; height: 28px; border-radius: 14px; border: 2px solid #b9b9b1; background: #fff; display: grid; place-items: center; color: var(--tk-ink) }
+.tk-check:hover { border-color: var(--tk-ink) }
+.tk-check.on { background: var(--tk-lime); border-color: var(--tk-lime) }
+.tk-done { margin-top: 6px }
+.tk-done summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--tk-muted); padding: 6px 4px }
+.tk-done .tk-task { margin-top: 6px; background: transparent }
+.tk-task.done .what b { text-decoration: line-through; color: var(--tk-muted) }
 .tk-when { flex: none; min-width: 92px; height: 34px; border-radius: 17px; display: grid; place-items: center; font-size: 12px; font-weight: 700; padding: 0 10px; background: #fff; border: 1px solid #e2e2dd; font-variant-numeric: tabular-nums }
 .tk-when.hot { background: var(--tk-lime); border-color: transparent }
 .tk-when.warn { background: var(--tk-amber-bg); border-color: transparent; color: var(--tk-amber-ink) }
