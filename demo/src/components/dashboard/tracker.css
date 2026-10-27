@@ -22,6 +22,10 @@
 .tk-head .sub { font-size: 22px; color: var(--tk-muted); font-weight: 300 }
 .tk-head .grow { flex: 1 1 260px }
 .tk-updated { font-size: 13px; color: var(--tk-muted) }
+.tk-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 22px; background: var(--tk-surface) }
+.tk-seg button { height: 36px; padding: 0 14px; border-radius: 18px; font-size: 13px; font-weight: 600 }
+.tk-seg button:hover { background: var(--tk-lane) }
+.tk-seg button.on { background: var(--tk-ink); color: #fff }
 .tk-icon-btn { width: 44px; height: 44px; border-radius: 22px; background: var(--tk-surface); display: grid; place-items: center; color: #444 }
 .tk-cta { height: 44px; border-radius: 22px; background: var(--tk-ink); color: #fff; display: flex; align-items: center; gap: 12px; padding: 0 6px 0 18px; font-size: 13px; font-weight: 600 }
 .tk-cta > span:last-child { width: 32px; height: 32px; border-radius: 16px; background: #fff; color: var(--tk-ink); display: grid; place-items: center }

@@ -102,6 +102,20 @@ export function adaptFeed(items: FeedItem[], now: number): { applications: Appli
     byCompany.get(key)!.push(it);
   }
 
+  // One company under two spellings ("Tylertech" from a recruiter's address,
+  // "Tyler Technologies" from the careers mailbox): merge a key into a longer
+  // key it starts. Shorter keys first, so each merges into its nearest match.
+  const keys = [...byCompany.keys()].sort((a, b) => a.length - b.length);
+  for (const short of keys) {
+    const base = short.slice(4);
+    if (base.length < 5) continue;
+    const into = keys.find(k => k !== short && byCompany.has(k) && k.length > short.length && k.slice(4).startsWith(base));
+    if (into) {
+      byCompany.get(into)!.push(...byCompany.get(short)!);
+      byCompany.delete(short);
+    }
+  }
+
   const emails: Email[] = [];
   const applications: Application[] = [];
   for (const [appId, group] of byCompany) {
@@ -125,7 +139,9 @@ export function adaptFeed(items: FeedItem[], now: number): { applications: Appli
 
     const roleEmail = [...appEmails].reverse().find(e => e.role && e.role !== 'Candidate' && e.role !== 'Applicant');
     const companyDomainEmail = appEmails.find(e => e.senderDomain && !ATS_OR_PERSONAL.test(e.senderDomain));
-    const company = newest.company;
+    // The most readable spelling: "Tyler Technologies" over "Tylertech"
+    const company = [...new Set(appEmails.map(e => e.company))]
+      .sort((a, b) => Number(/\s/.test(b)) - Number(/\s/.test(a)) || Number(/[a-z][A-Z]|^[A-Z][a-z]/.test(b)) - Number(/[a-z][A-Z]|^[A-Z][a-z]/.test(a)) || b.length - a.length)[0];
     applications.push({
       id: appId,
       company,

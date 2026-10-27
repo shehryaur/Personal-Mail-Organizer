@@ -26,8 +26,43 @@ const CHARTS = {
 } as const;
 type Chart = keyof typeof CHARTS;
 
+const RANGES = [
+  { key: '7', label: '1 week', days: 7 },
+  { key: '30', label: '1 month', days: 30 },
+  { key: '90', label: '3 months', days: 90 },
+  { key: '365', label: '1 year', days: 365 },
+  { key: 'all', label: 'All', days: 0 },
+] as const;
+type Range = (typeof RANGES)[number]['key'];
+const RANGE_KEY = 'trackerRange';
+const savedRange = (): Range => {
+  try {
+    const v = window.localStorage.getItem(RANGE_KEY);
+    return (RANGES.find(r => r.key === v)?.key) || 'all';
+  } catch {
+    return 'all';
+  }
+};
+
 export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEmail, onRefresh, refreshing, updatedLabel, banner, onOpenSettings }) => {
-  const board = useMemo(() => buildBoard(applications, now), [applications, now]);
+  const [range, setRange] = useState<Range>(savedRange);
+  const pickRange = (r: Range) => {
+    setRange(r);
+    try { window.localStorage.setItem(RANGE_KEY, r); } catch { /* remembered for this visit only */ }
+  };
+  // Counts and the board show what happened in the chosen period; To do always
+  // uses everything, since a deadline matters whenever its email arrived
+  const inRange = useMemo(() => {
+    const days = RANGES.find(r => r.key === range)!.days;
+    if (!days) return applications;
+    const since = now - days * 86400000;
+    return applications
+      .map(a => ({ ...a, emails: a.emails.filter(e => new Date(e.receivedAt).getTime() >= since) }))
+      .filter(a => a.emails.length > 0);
+  }, [applications, now, range]);
+  const everything = useMemo(() => buildBoard(applications, now), [applications, now]);
+  const periodBoard = useMemo(() => buildBoard(inRange, now), [inRange, now]);
+  const board = { ...periodBoard, tasks: everything.tasks };
   const [focus, setFocus] = useState<Lane | null>(null);
   const [chart, setChart] = useState<Chart>('applied');
   const [done, setDone] = useState<string[]>([]);
@@ -50,6 +85,11 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
         <div className="grow">
           <h1>Dashboard</h1>
           <div className="sub">Job applications</div>
+        </div>
+        <div className="tk-seg" role="group" aria-label="Time period">
+          {RANGES.map(r => (
+            <button key={r.key} className={range === r.key ? 'on' : ''} aria-pressed={range === r.key} onClick={() => pickRange(r.key)}>{r.label}</button>
+          ))}
         </div>
         {updatedLabel && <span className="tk-updated" aria-live="polite">{refreshing ? 'Checking for new emails…' : updatedLabel}</span>}
         {onOpenSettings && (
