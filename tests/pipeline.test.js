@@ -101,6 +101,13 @@ check('model sure -> the AI is never asked, even when switched on', r, { stage: 
 r = run('a@acme.com', 'Hi', 'Some text here.', { props: {} });
 check('no Model.gs and no AI key -> not recorded, retried next run', r, { source: 'error_fallback' });
 
+r = run('Sofia (Google Calendar) <calendar-notification@google.com>', 'Appointment booked: Technical Interview @ Tue Nov 3, 2026 11:30am - 12pm', 'You have an upcoming appointment.',
+  { model: { category: 'interview', confidence: 0.9 } });
+check('interview: the date it happens is read from the calendar subject', r, { stage: 'interview', deadline: '2026-11-03', action_needed: true });
+
+r = run('Acme <jobs@acme.com>', 'Thanks for interviewing', 'Thanks for your time on October 2. We will be in touch.', { model: { category: 'interview', confidence: 0.9 } });
+check('interview: a date before the email arrived is not a deadline', r, { stage: 'interview', deadline: null });
+
 // ---------------------------------------------------------------- AI (no trained model yet)
 const p = ctx.parseClassification;
 check('parse: plain JSON', p('{"category":"applied","confidence":0.9,"evidence":"x"}'), { category: 'applied', confidence: 0.9 });

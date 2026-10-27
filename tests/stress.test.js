@@ -218,7 +218,7 @@ function makeGlobals(env) {
               vals.forEach((row, i) => {
                 if (row.length !== nc) throw new Error('Exception: The number of columns in the data does not match the number of columns in the range.');
                 while (s.rows.length < r - 1 + i) s.rows.push([]);
-                s.rows[r - 1 + i] = row.map(v => (v === null || v === undefined ? '' : v)); // Sheets stores null as ''
+                s.rows[r - 1 + i] = row.map(v => (v === null || v === undefined ? '' : typeof v === 'string' ? v.replace(/^'/, '') : v)); // Sheets stores null as '', and a leading ' just means "text"
               });
             },
           };
@@ -718,6 +718,22 @@ scenario('17. trained model (test fixture), no AI at all', () => {
   const review = rows(env).slice(1).filter(r => r[6] === 'review').length;
   note(`fixture model (trained on 129 synthetic emails): ${right}/${rows(env).length - 1} exactly right, ${review} sent to "review"`);
   check(gmailWrites(env) === 0, 'Gmail is never changed', '');
+});
+
+scenario('18. backfillHistory: months of history, resumable', () => {
+  const env = makeEnv({ nimKey: false });
+  for (let i = 0; i < 60; i++) addThread(env, [T[['R', 'X', 'A', 'I', 'N'][i % 5]](company(i), env.now - (i * 3 + 1) * DAY)]);
+  const ctx = load(env, { model: true });
+  run(env, ctx);
+  const firstRun = rows(env).length - 1;
+  check(firstRun < 60, 'the first normal run only looks back 30 days', `${firstRun} of 60 recorded`);
+  ctx.backfillHistory();
+  const ids = rows(env).slice(1).map(r => r[0]);
+  check(ids.length === 60 && new Set(ids).size === 60, 'backfill records the rest of the last 6 months, once each', `${ids.length} rows, ${new Set(ids).size} unique`);
+  check(!env.props.has('BACKFILL_CURSOR') && env.logs.some(l => /Backfill finished/.test(l)), 'it finishes and clears its bookmark', env.logs.filter(l => /Backfill/.test(l)).join(' | '));
+  ctx.backfillHistory();
+  check(rows(env).length - 1 === 60, 'running it again adds nothing twice', `${rows(env).length - 1} rows`);
+  check(gmailWrites(env) === 0 && env.fetches.length === 0, 'no Gmail changes and no AI calls', '');
 });
 
 // ---------------------------------------------------------------- print
