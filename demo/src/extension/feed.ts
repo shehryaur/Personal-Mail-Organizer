@@ -97,6 +97,21 @@ export function adaptFeed(items: FeedItem[], now: number): { applications: Appli
   const byCompany = new Map<string, FeedItem[]>();
   for (const it of items) {
     if (!it.message_id || it.stage === 'not_job') continue;
+
+    // Guardrail against school / work-study emails misclassified as job offers or applications:
+    const haystack = (String(it.sender || '') + ' ' + String(it.subject || '') + ' ' + String(it.company || '')).toLowerCase();
+    const isSchoolOrWorkStudy = /@(minerva\.edu|uni\.minerva\.edu)/i.test(it.sender) ||
+      /\b(?:minerva forum|minerva community|studentpayroll|ws offer|work study|workstudy)\b/i.test(haystack) ||
+      /\b(?:cs113|b110|b111|gl93|fe51|fa51|mc51|cx51)\b/i.test(haystack);
+    const isCommercialOffer = /\b(?:competing offer|best offer|macbook)\b/i.test(haystack) && /\b(?:ebay|cart|coupon)\b/i.test(haystack);
+
+    if (it.stage === 'offer' && (isSchoolOrWorkStudy || isCommercialOffer)) {
+      continue;
+    }
+    if (isSchoolOrWorkStudy && (it.company === 'Hellosign' || (it.stage === 'interview' && /cs113/i.test(haystack)))) {
+      continue;
+    }
+
     const key = 'app-' + (String(it.company || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '') || 'unknown');
     if (!byCompany.has(key)) byCompany.set(key, []);
     byCompany.get(key)!.push(it);
