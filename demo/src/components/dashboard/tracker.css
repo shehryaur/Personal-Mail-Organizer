@@ -26,6 +26,14 @@
 .tk-seg button { height: 36px; padding: 0 14px; border-radius: 18px; font-size: 13px; font-weight: 600 }
 .tk-seg button:hover { background: var(--tk-lane) }
 .tk-seg button.on { background: var(--tk-ink); color: #fff }
+.tk-range-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px }
+.tk-date-range { display: flex; align-items: center; gap: 8px; background: var(--tk-surface); padding: 4px 14px; border-radius: 22px; height: 44px; border: 1.5px solid transparent; transition: all .15s ease }
+.tk-date-range.active { border-color: var(--tk-ink); background: #fff }
+.tk-date-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--tk-muted); cursor: pointer }
+.tk-date-tag { user-select: none }
+.tk-date-input { height: 28px; padding: 0 8px; border-radius: 12px; border: 1px solid #d9d9d3; font-size: 12px; font-family: inherit; font-weight: 600; color: var(--tk-ink); background: var(--tk-lane); outline: none; cursor: pointer; transition: all .15s }
+.tk-date-input:focus, .tk-date-input:hover { border-color: var(--tk-ink); background: #fff }
+.tk-date-sep { font-size: 12px; font-weight: 600; color: var(--tk-muted); user-select: none }
 .tk-icon-btn { width: 44px; height: 44px; border-radius: 22px; background: var(--tk-surface); display: grid; place-items: center; color: #444 }
 .tk-cta { height: 44px; border-radius: 22px; background: var(--tk-ink); color: #fff; display: flex; align-items: center; gap: 12px; padding: 0 6px 0 18px; font-size: 13px; font-weight: 600 }
 .tk-cta > span:last-child { width: 32px; height: 32px; border-radius: 16px; background: #fff; color: var(--tk-ink); display: grid; place-items: center }
@@ -126,6 +134,8 @@
   .tk-counts { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .tk-count .num { font-size: 40px }
   .tk-task .go span { display: none }
+  .tk-range-controls { width: 100% }
+  .tk-date-range { width: 100%; justify-content: space-between }
 }
 @media (prefers-reduced-motion: reduce) { .tk-lane { transition: none } }
 
