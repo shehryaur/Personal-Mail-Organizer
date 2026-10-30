@@ -137,6 +137,57 @@ function setup() {
 }
 
 /**
+ * Run once from the Apps Script editor to fix any misclassified "offer" rows
+ * in your Google Sheet (e.g. campus Work Study or promotional emails).
+ * Updates their stage to 'not_job' and turns off action_needed.
+ */
+function fixMisclassifiedOffers() {
+  const props = PropertiesService.getScriptProperties();
+  const sheetId = props.getProperty('SPREADSHEET_ID');
+  if (!sheetId) throw new Error('SPREADSHEET_ID is not set in Script Properties.');
+  const ss = SpreadsheetApp.openById(sheetId);
+  const sheet = ss.getSheetByName(CONFIG.TRACKER_TAB) || ss.getSheets()[0];
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    Logger.log('Sheet is empty or has only headers.');
+    return;
+  }
+  const headers = data[0];
+  const stageCol = headers.indexOf('Stage');
+  const actionCol = headers.indexOf('Action Needed');
+  const sourceCol = headers.indexOf('Source');
+  const companyCol = headers.indexOf('Company');
+  const roleCol = headers.indexOf('Role');
+  const appCol = headers.indexOf('Application ID');
+  const subjectCol = headers.indexOf('Subject');
+  const fromCol = headers.indexOf('Sender');
+  const snippetCol = headers.indexOf('Snippet');
+
+  let fixedCount = 0;
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const stage = String(row[stageCol] || '').toLowerCase().trim();
+    if (stage === 'offer') {
+      const text = (String(row[fromCol] || '') + ' ' + String(row[subjectCol] || '') + ' ' + String(row[snippetCol] || '')).toLowerCase();
+      const isWorkStudy = /\b(?:work[- ]?study|studentpayroll|ws offer|workstudy|placement announcement)\b/i.test(text) ||
+        /@(?:[a-z0-9.-]+\.)?minerva\.edu/i.test(text);
+      const isPromo = /\b(?:competing offer|best offer|ebay|macbook)\b/i.test(text);
+      if (isWorkStudy || isPromo) {
+        sheet.getRange(i + 1, stageCol + 1).setValue('not_job');
+        if (actionCol !== -1) sheet.getRange(i + 1, actionCol + 1).setValue(false);
+        if (companyCol !== -1) sheet.getRange(i + 1, companyCol + 1).setValue('');
+        if (roleCol !== -1) sheet.getRange(i + 1, roleCol + 1).setValue('');
+        if (appCol !== -1) sheet.getRange(i + 1, appCol + 1).setValue('');
+        if (sourceCol !== -1) sheet.getRange(i + 1, sourceCol + 1).setValue('fix_work_study_guard');
+        fixedCount++;
+        Logger.log('Fixed row ' + (i + 1) + ': "' + row[subjectCol] + '" -> set to not_job');
+      }
+    }
+  }
+  Logger.log('Finished: corrected ' + fixedCount + ' misclassified offer row(s) in your Sheet.');
+}
+
+/**
  * Run from the editor to collect training data: your mail from the last
  * EXPORT_MONTHS months into the sheet's "Training export" tab (sender, subject,
  * the start of the text, and your own Gmail labels). Run it again if it stops
@@ -828,6 +879,24 @@ function finishAnalysis(base, stage, confidence, source, ai, from, subject, body
   if ((stage === 'assessment' || stage === 'offer') && isInterviewStep && !/\b(?:coding challenge|take-home|hackerrank|codesignal|assessment link)\b/i.test(haystack)) {
     stage = 'interview';
     source = (source || 'rule') + '+disambiguation';
+  }
+
+  // 5. Campus Work-Study & Academic Placement Guardrail:
+  // University student payroll, campus work study, and academic year placement announcements
+  // are internal university administrative notices, NOT employment job offers.
+  const isWorkStudyOrCampusNotice = /\b(?:work[- ]?study|studentpayroll|placement announcement|ws offer|campus placement|academic year placement)\b/i.test(haystack) ||
+    (/@(?:[a-z0-9.-]+\.)?(?:minerva\.edu|edu)\b/i.test(from) && /\b(?:placement|payroll|work[- ]?study|ws)\b/i.test(haystack));
+  if ((stage === 'offer' || stage === 'review') && isWorkStudyOrCampusNotice) {
+    stage = 'not_job';
+    source = (source || 'rule') + '+work_study_guard';
+  }
+
+  // 6. Commercial & Promotional "Offer" Guardrail (eBay, marketing, shopping, discounts):
+  const isCommercialOffer = /\b(?:competing offer|best offer|exclusive offer|special offer|bonus offer|discount offer)\b/i.test(haystack) &&
+    /\b(?:ebay|coupon|shop|promo|cart|checkout|store|macbook)\b/i.test(haystack);
+  if ((stage === 'offer' || stage === 'review') && isCommercialOffer) {
+    stage = 'not_job';
+    source = (source || 'rule') + '+promo_guard';
   }
 
   const isJob = stage !== 'not_job';
