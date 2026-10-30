@@ -1340,8 +1340,19 @@ function doGet(e) {
         obj[String(h).toLowerCase().replace(/\s+/g, '_')] =
           v instanceof Date ? v.toISOString() : typeof v === 'string' ? cleanId(v) : v;
       });
+      // Safety guardrail: do not export campus work-study or promotional offers as job items
+      if (obj.stage === 'offer') {
+        const text = (String(obj.sender || '') + ' ' + String(obj.subject || '') + ' ' + String(obj.snippet || '')).toLowerCase();
+        const isWorkStudy = /\b(?:work[- ]?study|studentpayroll|ws offer|workstudy|placement announcement)\b/i.test(text) ||
+          /@(?:[a-z0-9.-]+\.)?minerva\.edu/i.test(text);
+        const isPromo = /\b(?:competing offer|best offer|ebay|macbook)\b/i.test(text);
+        if (isWorkStudy || isPromo) {
+          obj.stage = 'not_job';
+        }
+      }
       return obj;
-    });
+    })
+    .filter(obj => obj.stage !== 'not_job');
 
   return jsonOut({ ok: true, updated_at: new Date().toISOString(), refreshed: refreshed, items: items });
 }
