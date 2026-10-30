@@ -248,31 +248,33 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
             </button>
           </div>
 
-          <div className={`tk-date-range${range === 'custom' ? ' active' : ''}`} role="group" aria-label="Date range">
-            <label className="tk-date-label">
-              <span className="tk-date-tag">From</span>
-              <input
-                type="date"
-                className="tk-date-input"
-                value={customFrom}
-                max={customTo || undefined}
-                onChange={e => handleFromChange(e.target.value)}
-                aria-label="Filter from date"
-              />
-            </label>
-            <span className="tk-date-sep">to</span>
-            <label className="tk-date-label">
-              <span className="tk-date-tag">To</span>
-              <input
-                type="date"
-                className="tk-date-input"
-                value={customTo}
-                min={customFrom || undefined}
-                onChange={e => handleToChange(e.target.value)}
-                aria-label="Filter to date"
-              />
-            </label>
-          </div>
+          {range === 'custom' && (
+            <div className="tk-date-range active" role="group" aria-label="Date range">
+              <label className="tk-date-label">
+                <span className="tk-date-tag">From</span>
+                <input
+                  type="date"
+                  className="tk-date-input"
+                  value={customFrom}
+                  max={customTo || undefined}
+                  onChange={e => handleFromChange(e.target.value)}
+                  aria-label="Filter from date"
+                />
+              </label>
+              <span className="tk-date-sep">to</span>
+              <label className="tk-date-label">
+                <span className="tk-date-tag">To</span>
+                <input
+                  type="date"
+                  className="tk-date-input"
+                  value={customTo}
+                  min={customFrom || undefined}
+                  onChange={e => handleToChange(e.target.value)}
+                  aria-label="Filter to date"
+                />
+              </label>
+            </div>
+          )}
         </div>
 
         {updatedLabel && <span className="tk-updated" aria-live="polite">{refreshing ? 'Checking for new emails…' : updatedLabel}</span>}
