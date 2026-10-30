@@ -175,6 +175,27 @@ r = run('Riley <riley@acme.com>', 'Re: Product Designer', 'are you free Thu?', {
 } });
 check('AI: reply in a thread that already has job emails is read in context', r, { stage: 'interview' });
 
+// Work Study & Offer Guardrails
+r = run('Minerva University <noreply@mail.hellosign.com>', 'Shehryar Hassan WS Offer Letter – signature requested by Minerva University', 'Minerva University (studentpayroll@minerva.edu) has requested a signature Review and sign DocumentShehryar Hassan WS Offer Letter', {
+  ai: { 'fast-model': always({ category: 'offer', confidence: 0.9, evidence: 'WS Offer Letter' }) }
+});
+check('guardrail: Minerva WS Offer Letter -> not_job', r, { stage: 'not_job', action_needed: false });
+
+r = run('Work Study Team <WorkStudy@minerva.edu>', 'Work Study Placement Announcement – 2026–2027 Academic Year', 'we are excited to announce preliminary Work Study placements', {
+  ai: { 'fast-model': always({ category: 'offer', confidence: 0.9, evidence: 'Work Study placements' }) }
+});
+check('guardrail: Work Study Placement Announcement -> not_job', r, { stage: 'not_job', action_needed: false });
+
+r = run('eBay <ebay@ebay.com>', 'Competing offer! Act now on MacBook Pro 14"', 'You have a competing offer on your cart item.', {
+  ai: { 'fast-model': always({ category: 'offer', confidence: 0.92, evidence: 'Competing offer' }) }
+});
+check('guardrail: eBay commercial offer -> not_job', r, { stage: 'not_job', action_needed: false });
+
+r = run('Recruiting Team <talent@palantir.com>', 'Offer of Employment: Palantir Technologies', 'We are pleased to extend an offer of employment for the Software Engineer role.', {
+  ai: { 'fast-model': always({ category: 'offer', confidence: 0.95, evidence: 'pleased to extend an offer of employment' }) }
+});
+check('real employer offer: remains offer', r, { stage: 'offer', action_needed: true });
+
 // ---------------------------------------------------------------- company names
 const co = vm.runInContext('extractCompanyFromSender', ctx);
 [
