@@ -33,11 +33,34 @@ const RANGES = [
   { key: '365', label: '1 year', days: 365 },
   { key: 'all', label: 'All', days: 0 },
 ] as const;
-type Range = (typeof RANGES)[number]['key'];
+type Range = (typeof RANGES)[number]['key'] | 'custom';
 const RANGE_KEY = 'trackerRange';
+const FROM_KEY = 'trackerCustomFrom';
+const TO_KEY = 'trackerCustomTo';
+
+function toDateInputValue(timestamp: number): string {
+  const d = new Date(timestamp);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getEarliestDate(apps: Application[], fallbackNow: number): string {
+  let earliest = fallbackNow;
+  for (const a of apps) {
+    for (const e of a.emails) {
+      const t = new Date(e.receivedAt).getTime();
+      if (!isNaN(t) && t < earliest) earliest = t;
+    }
+  }
+  return toDateInputValue(earliest);
+}
+
 const savedRange = (): Range => {
   try {
     const v = window.localStorage.getItem(RANGE_KEY);
+    if (v === 'custom') return 'custom';
     return (RANGES.find(r => r.key === v)?.key) || 'all';
   } catch {
     return 'all';
@@ -46,20 +69,94 @@ const savedRange = (): Range => {
 
 export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEmail, onRefresh, refreshing, updatedLabel, banner, onOpenSettings }) => {
   const [range, setRange] = useState<Range>(savedRange);
+  const [customFrom, setCustomFrom] = useState<string>(() => {
+    try {
+      const v = window.localStorage.getItem(FROM_KEY);
+      if (v) return v;
+    } catch {}
+    const initialRange = savedRange();
+    if (initialRange === 'all') return getEarliestDate(applications, now);
+    const days = RANGES.find(r => r.key === initialRange)?.days ?? 30;
+    return toDateInputValue(now - days * 86400000);
+  });
+  const [customTo, setCustomTo] = useState<string>(() => {
+    try {
+      const v = window.localStorage.getItem(TO_KEY);
+      if (v) return v;
+    } catch {}
+    return toDateInputValue(now);
+  });
+
   const pickRange = (r: Range) => {
     setRange(r);
     try { window.localStorage.setItem(RANGE_KEY, r); } catch { /* remembered for this visit only */ }
+    if (r !== 'custom') {
+      const days = RANGES.find(x => x.key === r)?.days ?? 0;
+      const toStr = toDateInputValue(now);
+      const fromStr = days > 0 ? toDateInputValue(now - days * 86400000) : getEarliestDate(applications, now);
+      setCustomFrom(fromStr);
+      setCustomTo(toStr);
+      try {
+        window.localStorage.setItem(FROM_KEY, fromStr);
+        window.localStorage.setItem(TO_KEY, toStr);
+      } catch {}
+    }
   };
+
+  const handleFromChange = (val: string) => {
+    setCustomFrom(val);
+    setRange('custom');
+    try {
+      window.localStorage.setItem(FROM_KEY, val);
+      window.localStorage.setItem(RANGE_KEY, 'custom');
+    } catch {}
+  };
+
+  const handleToChange = (val: string) => {
+    setCustomTo(val);
+    setRange('custom');
+    try {
+      window.localStorage.setItem(TO_KEY, val);
+      window.localStorage.setItem(RANGE_KEY, 'custom');
+    } catch {}
+  };
+
   // Counts and the board show what happened in the chosen period; To do always
   // uses everything, since a deadline matters whenever its email arrived
   const inRange = useMemo(() => {
-    const days = RANGES.find(r => r.key === range)!.days;
+    if (range === 'custom') {
+      const fromTime = customFrom && !isNaN(new Date(`${customFrom}T00:00:00`).getTime())
+        ? new Date(`${customFrom}T00:00:00`).getTime()
+        : 0;
+      const toTime = customTo && !isNaN(new Date(`${customTo}T23:59:59.999`).getTime())
+        ? new Date(`${customTo}T23:59:59.999`).getTime()
+        : Infinity;
+
+      return applications
+        .map(a => {
+          const matchedEmails = a.emails.filter(e => {
+            const t = new Date(e.receivedAt).getTime();
+            return t >= fromTime && t <= toTime;
+          });
+          const lastActivity = matchedEmails.length
+            ? [...matchedEmails].sort((x, y) => x.receivedAt.localeCompare(y.receivedAt))[matchedEmails.length - 1].receivedAt
+            : a.lastActivity;
+          return {
+            ...a,
+            emails: matchedEmails,
+            lastActivity,
+          };
+        })
+        .filter(a => a.emails.length > 0);
+    }
+    const days = RANGES.find(r => r.key === range)?.days ?? 0;
     if (!days) return applications;
     const since = now - days * 86400000;
     return applications
       .map(a => ({ ...a, emails: a.emails.filter(e => new Date(e.receivedAt).getTime() >= since) }))
       .filter(a => a.emails.length > 0);
-  }, [applications, now, range]);
+  }, [applications, now, range, customFrom, customTo]);
+
   const everything = useMemo(() => buildBoard(applications, now), [applications, now]);
   const periodBoard = useMemo(() => buildBoard(inRange, now), [inRange, now]);
   const board = { ...periodBoard, tasks: everything.tasks };
@@ -85,6 +182,11 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
   const [tablePage, setTablePage] = useState<number>(0);
   const TABLE_PAGE_SIZE = 12;
 
+  // Reset pagination if date filter, stage or search changes
+  useEffect(() => {
+    setTablePage(0);
+  }, [range, customFrom, customTo, tableStage, tableSearch]);
+
   const allCards = useMemo(() => board.lanes.flatMap(l => l.cards), [board.lanes]);
 
   const filteredTableCards = useMemo(() => {
@@ -107,11 +209,54 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
           <h1>Dashboard</h1>
           <div className="sub">Job applications</div>
         </div>
-        <div className="tk-seg" role="group" aria-label="Time period">
-          {RANGES.map(r => (
-            <button key={r.key} className={range === r.key ? 'on' : ''} aria-pressed={range === r.key} onClick={() => pickRange(r.key)}>{r.label}</button>
-          ))}
+        <div className="tk-range-controls" role="group" aria-label="Time period and date filters">
+          <div className="tk-seg" role="group" aria-label="Time period presets">
+            {RANGES.map(r => (
+              <button
+                key={r.key}
+                className={range === r.key ? 'on' : ''}
+                aria-pressed={range === r.key}
+                onClick={() => pickRange(r.key)}
+              >
+                {r.label}
+              </button>
+            ))}
+            <button
+              className={range === 'custom' ? 'on' : ''}
+              aria-pressed={range === 'custom'}
+              onClick={() => pickRange('custom')}
+            >
+              Custom
+            </button>
+          </div>
+
+          <div className={`tk-date-range${range === 'custom' ? ' active' : ''}`} role="group" aria-label="Date range">
+            <label className="tk-date-label">
+              <span className="tk-date-tag">From</span>
+              <input
+                type="date"
+                className="tk-date-input"
+                value={customFrom}
+                max={customTo || undefined}
+                onChange={e => handleFromChange(e.target.value)}
+                aria-label="Filter from date"
+              />
+            </label>
+            <span className="tk-date-sep">to</span>
+            <label className="tk-date-label">
+              <span className="tk-date-tag">To</span>
+              <input
+                type="date"
+                className="tk-date-input"
+                value={customTo}
+                min={customFrom || undefined}
+                onChange={e => handleToChange(e.target.value)}
+                aria-label="Filter to date"
+              />
+            </label>
+          </div>
         </div>
+
         {updatedLabel && <span className="tk-updated" aria-live="polite">{refreshing ? 'Checking for new emails…' : updatedLabel}</span>}
         {onOpenSettings && (
           <button className="tk-icon-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings">
