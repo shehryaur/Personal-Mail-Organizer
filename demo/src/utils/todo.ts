@@ -23,6 +23,8 @@ export function asksForAction(e: Email): boolean {
       return INTERVIEW_ASK.test(text);
     case 'other':
       return OTHER_ASK.test(text);
+    case 'review':
+      return !!e.deadlineResolved;
     default:
       return false;
   }

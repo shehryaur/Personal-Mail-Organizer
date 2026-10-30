@@ -117,7 +117,7 @@ function cardFor(app: Application, now: number): Card {
 const UNDATED_TODO_DAYS = 14;
 
 function taskFor(card: Card, now: number): Task | null {
-  if (card.lane === 'rejected' || card.lane === 'review') return null;
+  if (card.lane === 'rejected' || (card.lane === 'review' && !card.deadline)) return null;
   const emails = [...card.app.emails].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
   const asks = emails.find(asksForAction);
   if (!asks) return null;

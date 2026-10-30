@@ -738,6 +738,10 @@ function analyzeEmail(from, subject, rawBody, emailDate, context) {
   const finish = (stage, confidence, source, ai) => finishAnalysis(base, stage, confidence, source, ai, from, subject, body, emailDate);
 
   const m = modelVerdict(from, subject, body, context.labels);
+  // Empty body guard: do not confidently auto-reject or auto-offer single-word emails with no body
+  if (body.trim().length === 0 && m && m.sure && (m.category === 'rejected' || m.category === 'offer')) {
+    return finish('review', m.confidence, 'empty_body_guard');
+  }
   if (m && m.sure) return finish(m.category, m.confidence, 'model');
 
   if (aiFallbackOn() && !(context.ai && context.ai.broken)) {
@@ -788,19 +792,56 @@ function eventDate(text, emailDate) {
 
 /** Company, role, deadline and "needs action" for a decided stage */
 function finishAnalysis(base, stage, confidence, source, ai, from, subject, body, emailDate) {
+  const haystack = (from + ' ' + subject + ' ' + body).toLowerCase();
+
+  // 1. Safety Guardrail: Booking links (Calendly, GoodTime, etc.) indicate an active interview scheduling step
+  const hasBookingLink = CONFIG.BOOKING_LINK.test(haystack);
+  if (hasBookingLink && (stage === 'rejected' || stage === 'applied' || stage === 'not_job')) {
+    stage = 'interview';
+    source = (source || 'rule') + '+guardrail';
+  }
+
+  // 2. Safety Guardrail: Adversative interview invitation (e.g. Role A rejected, but invite for Role B)
+  const hasInterviewInvite = /\b(?:invite you (?:to|for) an? (?:interview|chat|call)|schedule (?:an?|your) interview|like to interview you)\b/i.test(haystack) ||
+    /(?:however|but|instead)[^.\n]{0,150}\b(?:interview you|consider you for another role|discuss (?:another|other) (?:role|position|opportunity))\b/i.test(haystack);
+  if (hasInterviewInvite && stage === 'rejected') {
+    stage = 'interview';
+    source = (source || 'rule') + '+guardrail';
+  }
+
+  // 3. Negation & Conditional Offer Guardrail: Prevent "cannot offer" or conditional policy blurbs from becoming offers
+  const negatedOffer = /\b(?:cannot|can't|unable to|not able to|not in a position to|regret that we cannot|will not be able to)\s+(?:extend|make|give|offer)\b/i.test(haystack) ||
+    /\bno\s+offer\b/i.test(haystack) ||
+    /\b(?:if|when|candidates who are)\s+(?:you are|selected)[^.\n]{0,80}\b(?:receive|get)\s+an?\s+offer\b/i.test(haystack);
+  if ((stage === 'offer' || stage === 'review') && negatedOffer) {
+    if (/\b(?:cannot offer|unable to offer|unfortunately|regret|not moving forward|other candidates|another candidate|position has been filled|filled the role)\b/i.test(haystack)) {
+      stage = 'rejected';
+      source = (source || 'rule') + '+negation_guard';
+    } else if (stage === 'offer') {
+      stage = 'review';
+      source = (source || 'rule') + '+negation_guard';
+    }
+  }
+
+  // 4. "Selected for this portion / round -> Must interview" Disambiguation:
+  const isInterviewStep = /\b(?:technical interview|phone interview|panel interview|schedule (?:an?|your) interview|interview slot|interview round)\b/i.test(haystack);
+  if ((stage === 'assessment' || stage === 'offer') && isInterviewStep && !/\b(?:coding challenge|take-home|hackerrank|codesignal|assessment link)\b/i.test(haystack)) {
+    stage = 'interview';
+    source = (source || 'rule') + '+disambiguation';
+  }
+
   const isJob = stage !== 'not_job';
   // Company: the AI's, if it actually appears in the email; otherwise from the sender
-  const haystack = (from + ' ' + subject + ' ' + body).toLowerCase();
   const aiCompanyOk = ai && ai.company && haystack.indexOf(ai.company.toLowerCase().split(/\s+/)[0]) !== -1;
+
   // Deadlines matter where I have to do something; a receipt's "we'll reply within
-  // 2 weeks" is not mine, and an unsure "review" guess must not land in the to-do
-  // list. Date math is always done here, from when the email arrived.
+  // 2 weeks" is not mine. Include 'review' so urgent countdowns are not lost!
   let deadline = { date: null, raw: null };
-  if (['assessment', 'interview', 'offer', 'other'].indexOf(stage) !== -1) {
+  if (['assessment', 'interview', 'offer', 'other', 'review'].indexOf(stage) !== -1) {
     if (ai && ai.deadline_phrase) deadline = resolveRelativeDeadline(ai.deadline_phrase, emailDate);
     if (!deadline.date) deadline = resolveRelativeDeadline(subject + '\n' + body, emailDate);
     // An interview's date is when it happens: "@ Tue Nov 3, 2026 11:30am"
-    if (!deadline.date && stage === 'interview') deadline = eventDate(subject + '\n' + body, emailDate);
+    if (!deadline.date && (stage === 'interview' || hasBookingLink)) deadline = eventDate(subject + '\n' + body, emailDate);
   }
   const result = {
     company: aiCompanyOk ? ai.company : (base.company || (ai && ai.company) || 'Unknown Company'),
@@ -808,8 +849,8 @@ function finishAnalysis(base, stage, confidence, source, ai, from, subject, body
     stage: stage,
     deadline: deadline.date,
     deadline_raw: deadline.raw || (ai && ai.deadline_phrase) || null,
-    action_needed: isJob && stage !== 'review' && (['assessment', 'interview', 'offer'].indexOf(stage) !== -1 || !!deadline.date ||
-      !!(ai && ai.action_needed && stage !== 'applied' && stage !== 'rejected')),
+    action_needed: isJob && (['assessment', 'interview', 'offer'].indexOf(stage) !== -1 || !!deadline.date ||
+      (stage !== 'review' && !!(ai && ai.action_needed && stage !== 'applied' && stage !== 'rejected'))),
     confidence: confidence,
     source: source,
     evidence: ai ? ai.evidence : null
@@ -827,6 +868,8 @@ function finishAnalysis(base, stage, confidence, source, ai, from, subject, body
  */
 function cleanBody(body) {
   let text = String(body || '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -1107,9 +1150,17 @@ function titleCase(s) {
 }
 
 function extractRole(subject) {
-  const match = subject.match(/(?:for|role|position):\s*([a-zA-Z0-9\s-]+)/i) ||
-                subject.match(/([a-zA-Z\s]+(?:Engineer|Designer|Manager|Analyst|Intern|Fellow))/i);
-  return match ? match[1].trim() : 'Candidate';
+  const forMatch = subject.match(/(?:role|position):\s*([a-zA-Z0-9\s-]+)/i);
+  if (forMatch) return forMatch[1].trim();
+
+  const titleWords = /\b(?:engineer|designer|manager|analyst|intern|fellow|developer|specialist|scientist|consultant|researcher|associate|architect|lead)\b/i;
+  const forRole = subject.match(/for:\s*([a-zA-Z0-9\s-]+)/i);
+  if (forRole && titleWords.test(forRole[1])) {
+    return forRole[1].trim();
+  }
+
+  const roleMatch = subject.match(/([a-zA-Z\s]+(?:Engineer|Designer|Manager|Analyst|Intern|Fellow|Developer|Specialist|Scientist|Consultant|Researcher|Associate|Architect|Lead))/i);
+  return roleMatch ? roleMatch[1].trim() : 'Candidate';
 }
 
 function generateApplicationId(company, role) {

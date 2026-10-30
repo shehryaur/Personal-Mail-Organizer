@@ -53,7 +53,11 @@ function emailTokens(email) {
 
   addText(modelWords(email.subject), 's:');
 
-  const body = String(email.body || '').slice(0, MODEL_CORE.BODY_CHARS);
+  const raw = String(email.body || '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ');
+  const body = raw.slice(0, MODEL_CORE.BODY_CHARS);
   (body.match(/https?:\/\/[^\s/<>"')]+/gi) || []).forEach(u => add('url:' + modelDomain(u.replace(/^https?:\/\//i, ''))));
   addText(modelWords(body.replace(/https?:\/\/\S+/gi, ' ')), '');
 
