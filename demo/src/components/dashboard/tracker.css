@@ -27,8 +27,7 @@
 .tk-seg button:hover { background: var(--tk-lane) }
 .tk-seg button.on { background: var(--tk-ink); color: #fff }
 .tk-range-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px }
-.tk-date-range { display: flex; align-items: center; gap: 8px; background: var(--tk-surface); padding: 4px 14px; border-radius: 22px; height: 44px; border: 1.5px solid transparent; transition: all .15s ease }
-.tk-date-range.active { border-color: var(--tk-ink); background: #fff }
+.tk-date-range { display: flex; align-items: center; gap: 8px; background: #fff; padding: 4px 14px; border-radius: 22px; height: 44px; border: 1.5px solid var(--tk-ink); animation: tkFadeIn .15s ease-out }
 .tk-date-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--tk-muted); cursor: pointer }
 .tk-date-tag { user-select: none }
 .tk-date-input { height: 28px; padding: 0 8px; border-radius: 12px; border: 1px solid #d9d9d3; font-size: 12px; font-family: inherit; font-weight: 600; color: var(--tk-ink); background: var(--tk-lane); outline: none; cursor: pointer; transition: all .15s }
