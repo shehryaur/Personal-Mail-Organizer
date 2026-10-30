@@ -242,3 +242,163 @@
   opacity: .4;
   cursor: not-allowed;
 }
+
+/* Timeline Button in header */
+.tk-timeline-btn {
+  height: 44px;
+  border-radius: 22px;
+  background: var(--tk-surface);
+  color: var(--tk-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid transparent;
+  transition: all .15s ease;
+  cursor: pointer;
+}
+.tk-timeline-btn:hover {
+  background: var(--tk-lane);
+  border-color: #d9d9d3;
+}
+.tk-timeline-btn.on {
+  background: var(--tk-ink);
+  color: #fff;
+}
+
+/* Timeline Drawer Overlay */
+.tk-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(27, 27, 27, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  animation: tkFadeIn 0.2s ease-out;
+}
+
+.tk-timeline-drawer {
+  width: min(580px, 94vw);
+  height: 100%;
+  background: var(--tk-surface);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px;
+  gap: 18px;
+  overflow-y: auto;
+  animation: tkSlideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tkFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tkSlideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.tk-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.tk-drawer-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tk-drawer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tk-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.tk-drawer-head h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.tk-drawer-sub {
+  font-size: 13px;
+  color: var(--tk-muted);
+}
+.tk-drawer-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  background: var(--tk-lane);
+  display: grid;
+  place-items: center;
+  color: var(--tk-ink);
+  transition: all .15s ease;
+  flex-shrink: 0;
+}
+.tk-drawer-close:hover {
+  background: #deded8;
+}
+
+.tk-drawer-tabs {
+  display: flex;
+  align-items: center;
+}
+.tk-drawer-tabs .tk-tabs {
+  margin-left: 0;
+}
+
+.tk-drawer-chart-card {
+  background: var(--tk-lane);
+  border-radius: 20px;
+  padding: 20px 18px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.tk-drawer-chart-card .tk-bars {
+  min-height: 220px;
+}
+
+.tk-drawer-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.tk-drawer-stat-item {
+  background: var(--tk-lane);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tk-drawer-stat-item .label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--tk-muted);
+}
+.tk-drawer-stat-item .val {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.tk-drawer-stat-item small {
+  font-size: 11px;
+  color: var(--tk-muted);
+}
+
+.tk-todo-card {
+  width: 100%;
+}
