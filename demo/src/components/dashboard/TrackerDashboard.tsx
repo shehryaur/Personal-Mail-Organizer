@@ -1,6 +1,6 @@
 // The Job Tracker dashboard: counts per stage, the to-do list, weekly counts and
-// every application on a stage board. Same component in Gmail (extension) and
-// in the reviewers' demo. Design: prototype/job-tracker.html.
+// every application in a dense, searchable table. Same component in Gmail (extension)
+// and in the reviewers' demo.
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Application } from '../../types';
 import { buildBoard, type Lane } from '../../utils/board';
@@ -79,6 +79,27 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
   const max = Math.max(1, ...series);
   const focusName = focus ? board.lanes.find(l => l.key === focus)?.name : null;
 
+  // Dense Table state
+  const [tableStage, setTableStage] = useState<string>('all');
+  const [tableSearch, setTableSearch] = useState<string>('');
+  const [tablePage, setTablePage] = useState<number>(0);
+  const TABLE_PAGE_SIZE = 12;
+
+  const allCards = useMemo(() => board.lanes.flatMap(l => l.cards), [board.lanes]);
+
+  const filteredTableCards = useMemo(() => {
+    let list = allCards;
+    if (tableStage !== 'all') list = list.filter(c => c.lane === tableStage);
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase().trim();
+      list = list.filter(c => c.app.company.toLowerCase().includes(q) || (c.app.role && c.app.role.toLowerCase().includes(q)));
+    }
+    return list;
+  }, [allCards, tableStage, tableSearch]);
+
+  const totalPages = Math.ceil(filteredTableCards.length / TABLE_PAGE_SIZE) || 1;
+  const pagedCards = filteredTableCards.slice(tablePage * TABLE_PAGE_SIZE, (tablePage + 1) * TABLE_PAGE_SIZE);
+
   return (
     <section className="tk" aria-label="Job Tracker">
       <div className="tk-head">
@@ -111,9 +132,14 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
         {board.counts.map(c => (
           <button
             key={c.key}
-            className={`tk-count${c.key === 'offer' && c.count > 0 ? ' hot' : ''}${focus === c.key ? ' on' : ''}`}
-            onClick={() => setFocus(focus === c.key ? null : c.key)}
-            aria-pressed={focus === c.key}
+            className={`tk-count${c.key === 'offer' && c.count > 0 ? ' hot' : ''}${tableStage === c.key ? ' on' : ''}`}
+            onClick={() => {
+              const next = tableStage === c.key ? 'all' : c.key;
+              setTableStage(next);
+              setFocus(next === 'all' ? null : next as Lane);
+              setTablePage(0);
+            }}
+            aria-pressed={tableStage === c.key}
           >
             <span className="k"><i className={`c-${c.key}`} />{c.label}</span>
             <span className="num">{c.count}</span>
@@ -189,34 +215,106 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
         <div className="tk-card-head">
           <h2>Where every application stands</h2>
           <span className="aside">
-            {focusName ? `Showing ${focusName}. Click the number again to show all.` : 'Click a company to open its latest email'}
+            {tableStage !== 'all' ? `Filtered to ${focusName || tableStage}. Click stage again to show all.` : 'Click a row to open its latest email'}
           </span>
         </div>
-        <div className="tk-board-box">
-          {/* each column at least 170px; narrower screens scroll the board sideways */}
-          <div className="tk-board" style={{ minWidth: board.lanes.length * 182 - 12 }}>
-            {board.lanes.map(l => (
-              <div key={l.key} className={`tk-lane${focus && focus !== l.key ? ' dim' : ''}`}>
-                <div className="tk-lane-head"><i className={`c-${l.key}`} />{l.name}<span>{l.cards.length}</span></div>
-                {l.cards.length === 0 && <div className="empty">Nothing here</div>}
-                {l.cards.map(c => (
-                  <button key={c.app.id} className="tk-co" onClick={() => onOpenEmail(c.openEmailId)}>
-                    <b>{c.app.company}</b>
-                    {c.app.role && <span className="role">{c.app.role}</span>}
-                    <span className={`tk-chip ${c.chip.kind}`}>{c.chip.text}</span>
-                    <span className="foot">
-                      <span className="tk-dots" aria-label="Stages reached">
-                        {(['applied', 'assessment', 'interview', 'offer'] as Lane[]).map(k => (
-                          <i key={k} className={c.reached.has(k) ? (k === 'offer' ? 'o' : 'd') : ''} />
-                        ))}
-                        {c.lane === 'rejected' && <i className="x" />}
-                      </span>
-                      <span title="Last email">{c.lastEmail}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ))}
+
+        <div className="tk-table-view">
+          <div className="tk-table-controls">
+            <div className="tk-table-filters">
+              <button
+                className={`tk-table-pill ${tableStage === 'all' ? 'on' : ''}`}
+                onClick={() => { setTableStage('all'); setFocus(null); setTablePage(0); }}
+              >
+                All ({allCards.length})
+              </button>
+              {board.lanes.map(l => (
+                <button
+                  key={l.key}
+                  className={`tk-table-pill ${tableStage === l.key ? 'on' : ''}`}
+                  onClick={() => {
+                    const next = tableStage === l.key ? 'all' : l.key;
+                    setTableStage(next);
+                    setFocus(next === 'all' ? null : next as Lane);
+                    setTablePage(0);
+                  }}
+                >
+                  {l.name} ({l.cards.length})
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              className="tk-table-search"
+              placeholder="Filter by company or role..."
+              value={tableSearch}
+              onChange={e => { setTableSearch(e.target.value); setTablePage(0); }}
+            />
+          </div>
+
+          <div className="tk-table-container">
+            <table className="tk-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Role</th>
+                  <th>Stage</th>
+                  <th>Status / Deadline</th>
+                  <th>Stages Reached</th>
+                  <th>Last Activity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedCards.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: 'var(--tk-muted)' }}>
+                      No applications found matching your filter.
+                    </td>
+                  </tr>
+                ) : (
+                  pagedCards.map(c => (
+                    <tr key={c.app.id} className="tk-table-row" onClick={() => onOpenEmail(c.openEmailId)}>
+                      <td><b>{c.app.company}</b></td>
+                      <td style={{ color: 'var(--tk-muted)' }}>{c.app.role || '—'}</td>
+                      <td><span className={`tk-stage-badge c-${c.lane}`}>{c.lane}</span></td>
+                      <td><span className={`tk-chip ${c.chip.kind}`}>{c.chip.text}</span></td>
+                      <td>
+                        <span className="tk-dots" aria-label="Stages reached">
+                          {(['applied', 'assessment', 'interview', 'offer'] as Lane[]).map(k => (
+                            <i key={k} className={c.reached.has(k) ? (k === 'offer' ? 'o' : 'd') : ''} />
+                          ))}
+                          {c.lane === 'rejected' && <i className="x" />}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--tk-muted)', fontSize: 12 }}>{c.lastEmail}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="tk-table-pagination">
+            <span>
+              Showing {filteredTableCards.length > 0 ? tablePage * TABLE_PAGE_SIZE + 1 : 0}–
+              {Math.min((tablePage + 1) * TABLE_PAGE_SIZE, filteredTableCards.length)} of {filteredTableCards.length}
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="tk-page-btn"
+                disabled={tablePage === 0}
+                onClick={() => setTablePage(p => Math.max(0, p - 1))}
+              >
+                ← Previous
+              </button>
+              <button
+                className="tk-page-btn"
+                disabled={tablePage >= totalPages - 1}
+                onClick={() => setTablePage(p => p + 1)}
+              >
+                Next →
+              </button>
+            </div>
           </div>
         </div>
       </div>
