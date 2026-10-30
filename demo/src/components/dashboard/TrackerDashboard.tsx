@@ -162,6 +162,7 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
   const board = { ...periodBoard, tasks: everything.tasks };
   const [focus, setFocus] = useState<Lane | null>(null);
   const [chart, setChart] = useState<Chart>('applied');
+  const [showTimeline, setShowTimeline] = useState<boolean>(false);
   const [done, setDone] = useState<string[]>([]);
   useEffect(() => { loadDone().then(setDone); }, []);
   const toggleDone = (emailId: string) => {
@@ -174,7 +175,24 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
 
   const series = board.weekly[chart];
   const max = Math.max(1, ...series);
+  const totalCount = useMemo(() => series.reduce((a, b) => a + b, 0), [series]);
+  const peakCount = useMemo(() => Math.max(0, ...series), [series]);
+  const peakWeek = useMemo(() => {
+    const idx = series.indexOf(peakCount);
+    return idx >= 0 && peakCount > 0 ? board.weekly.weeks[idx] : null;
+  }, [series, peakCount, board.weekly.weeks]);
+  const avgCount = useMemo(() => Math.round(totalCount / (series.length || 1)), [totalCount, series.length]);
   const focusName = focus ? board.lanes.find(l => l.key === focus)?.name : null;
+
+  // Close timeline drawer on Escape
+  useEffect(() => {
+    if (!showTimeline) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTimeline(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTimeline]);
 
   // Dense Table state
   const [tableStage, setTableStage] = useState<string>('all');
@@ -258,6 +276,15 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
         </div>
 
         {updatedLabel && <span className="tk-updated" aria-live="polite">{refreshing ? 'Checking for new emails…' : updatedLabel}</span>}
+        <button
+          className={`tk-timeline-btn${showTimeline ? ' on' : ''}`}
+          onClick={() => setShowTimeline(true)}
+          aria-label="Open timeline"
+          title="Open activity timeline"
+        >
+          <Icon name="bar_chart" size={18} />
+          <span>Timeline</span>
+        </button>
         {onOpenSettings && (
           <button className="tk-icon-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings">
             <Icon name="settings" size={20} />
@@ -293,66 +320,43 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
         ))}
       </div>
 
-      <div className="tk-row2">
-        <div className="tk-card">
-          <div className="tk-card-head">
-            <h2>To do</h2>
-            <span className="aside">{openTasks.length ? `${openTasks.length} things, soonest first` : 'Nothing waiting on you'}</span>
-          </div>
-          <div className="tk-todo">
-            {openTasks.length === 0 && <div className="tk-empty">No deadlines or requests right now.</div>}
-            {openTasks.map(t => (
-              <div key={t.card.app.id} className="tk-task">
-                <button className="tk-check" role="checkbox" aria-checked="false" onClick={() => toggleDone(t.card.openEmailId)}
-                  aria-label={`Mark ${t.card.app.company} done`} title="Mark done" />
-                <button className="tk-task-open" onClick={() => onOpenEmail(t.card.openEmailId)}>
-                  <span className={`tk-when${t.tone === 'plain' ? '' : ' ' + t.tone}`}>{t.when}</span>
-                  <span className="what">
-                    <b>{t.card.app.company}</b>
-                    <small>{t.what} · {t.detail}</small>
-                  </span>
-                  <span className="go"><span>Open email</span><Icon name="arrow_forward" size={16} /></span>
-                </button>
-              </div>
-            ))}
-            {doneTasks.length > 0 && (
-              <details className="tk-done">
-                <summary>Done ({doneTasks.length})</summary>
-                {doneTasks.map(t => (
-                  <div key={t.card.app.id} className="tk-task done">
-                    <button className="tk-check on" role="checkbox" aria-checked="true" onClick={() => toggleDone(t.card.openEmailId)}
-                      aria-label={`Mark ${t.card.app.company} not done`} title="Mark not done">
-                      <Icon name="check" size={18} />
-                    </button>
-                    <button className="tk-task-open" onClick={() => onOpenEmail(t.card.openEmailId)}>
-                      <span className="what"><b>{t.card.app.company}</b><small>{t.what}</small></span>
-                    </button>
-                  </div>
-                ))}
-              </details>
-            )}
-          </div>
+      <div className="tk-card tk-todo-card">
+        <div className="tk-card-head">
+          <h2>To do</h2>
+          <span className="aside">{openTasks.length ? `${openTasks.length} things, soonest first` : 'Nothing waiting on you'}</span>
         </div>
-
-        <div className="tk-card">
-          <div className="tk-card-head">
-            <h2>{CHARTS[chart].title}</h2>
-            <div className="tk-tabs" role="group" aria-label="Chart">
-              {(Object.keys(CHARTS) as Chart[]).map(k => (
-                <button key={k} className={chart === k ? 'on' : ''} onClick={() => setChart(k)}>{CHARTS[k].tab}</button>
-              ))}
+        <div className="tk-todo">
+          {openTasks.length === 0 && <div className="tk-empty">No deadlines or requests right now.</div>}
+          {openTasks.map(t => (
+            <div key={t.card.app.id} className="tk-task">
+              <button className="tk-check" role="checkbox" aria-checked="false" onClick={() => toggleDone(t.card.openEmailId)}
+                aria-label={`Mark ${t.card.app.company} done`} title="Mark done" />
+              <button className="tk-task-open" onClick={() => onOpenEmail(t.card.openEmailId)}>
+                <span className={`tk-when${t.tone === 'plain' ? '' : ' ' + t.tone}`}>{t.when}</span>
+                <span className="what">
+                  <b>{t.card.app.company}</b>
+                  <small>{t.what} · {t.detail}</small>
+                </span>
+                <span className="go"><span>Open email</span><Icon name="arrow_forward" size={16} /></span>
+              </button>
             </div>
-          </div>
-          <div className="tk-bars">
-            {series.map((v, i) => (
-              <div key={i} className={`tk-bar${i === series.length - 1 ? ' now' : ''}`} role="img" aria-label={`Week of ${board.weekly.weeks[i]}: ${v}`}>
-                <em>{v || ''}</em>
-                <i style={{ height: v ? `${Math.round((v / max) * 70)}%` : '2%' }} />
-                <small>{i % 2 === 1 ? board.weekly.weeks[i] : ''}</small>
-              </div>
-            ))}
-          </div>
-          <div className="tk-note">Per week, last 12 weeks. This week is in lime.</div>
+          ))}
+          {doneTasks.length > 0 && (
+            <details className="tk-done">
+              <summary>Done ({doneTasks.length})</summary>
+              {doneTasks.map(t => (
+                <div key={t.card.app.id} className="tk-task done">
+                  <button className="tk-check on" role="checkbox" aria-checked="true" onClick={() => toggleDone(t.card.openEmailId)}
+                    aria-label={`Mark ${t.card.app.company} not done`} title="Mark not done">
+                    <Icon name="check" size={18} />
+                  </button>
+                  <button className="tk-task-open" onClick={() => onOpenEmail(t.card.openEmailId)}>
+                    <span className="what"><b>{t.card.app.company}</b><small>{t.what}</small></span>
+                  </button>
+                </div>
+              ))}
+            </details>
+          )}
         </div>
       </div>
 
@@ -478,6 +482,87 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
             ))}
           </div>
         </details>
+      )}
+
+      {showTimeline && (
+        <div className="tk-drawer-backdrop" onClick={() => setShowTimeline(false)}>
+          <aside
+            className="tk-timeline-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Activity timeline"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="tk-drawer-head">
+              <div className="tk-drawer-title-group">
+                <div className="tk-drawer-badge">
+                  <Icon name="bar_chart" size={16} />
+                  <span>Activity Timeline</span>
+                </div>
+                <h2>{CHARTS[chart].title}</h2>
+                <span className="tk-drawer-sub">Weekly activity breakdown over the last 12 weeks</span>
+              </div>
+              <button
+                className="tk-drawer-close"
+                onClick={() => setShowTimeline(false)}
+                aria-label="Close timeline"
+                title="Close (Esc)"
+              >
+                <Icon name="close" size={20} />
+              </button>
+            </div>
+
+            <div className="tk-drawer-tabs">
+              <div className="tk-tabs" role="group" aria-label="Chart category">
+                {(Object.keys(CHARTS) as Chart[]).map(k => (
+                  <button
+                    key={k}
+                    className={chart === k ? 'on' : ''}
+                    onClick={() => setChart(k)}
+                  >
+                    {CHARTS[k].tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="tk-drawer-chart-card">
+              <div className="tk-bars">
+                {series.map((v, i) => (
+                  <div
+                    key={i}
+                    className={`tk-bar${i === series.length - 1 ? ' now' : ''}`}
+                    role="img"
+                    aria-label={`Week of ${board.weekly.weeks[i]}: ${v}`}
+                  >
+                    <em>{v || ''}</em>
+                    <i style={{ height: v ? `${Math.round((v / max) * 70)}%` : '2%' }} />
+                    <small>{i % 2 === 1 ? board.weekly.weeks[i] : ''}</small>
+                  </div>
+                ))}
+              </div>
+              <div className="tk-note">Per week, last 12 weeks. This week is in lime.</div>
+            </div>
+
+            <div className="tk-drawer-stats">
+              <div className="tk-drawer-stat-item">
+                <span className="label">12-Week Total</span>
+                <span className="val">{totalCount}</span>
+                <small>{CHARTS[chart].tab.toLowerCase()}</small>
+              </div>
+              <div className="tk-drawer-stat-item">
+                <span className="label">Peak Week</span>
+                <span className="val">{peakCount}</span>
+                <small>{peakWeek ? `Week of ${peakWeek}` : 'None'}</small>
+              </div>
+              <div className="tk-drawer-stat-item">
+                <span className="label">Weekly Avg</span>
+                <span className="val">{avgCount}</span>
+                <small>per week</small>
+              </div>
+            </div>
+          </aside>
+        </div>
       )}
     </section>
   );
