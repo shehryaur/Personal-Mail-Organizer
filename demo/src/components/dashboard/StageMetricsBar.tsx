@@ -1,6 +1,5 @@
 import React from 'react';
 import type { Lane } from '../../utils/board';
-import { STAGE_INTENT_BORDER_COLOR } from './blueprintTokens';
 
 export interface StageCountItem {
   key: Lane | string;
@@ -16,8 +15,8 @@ export interface StageMetricsBarProps {
 }
 
 /**
- * Palantir Blueprint Stage Metrics Bar
- * 5 compact metric cards with 26px tabular counts, uppercase labels, and 3px intent-colored left accents.
+ * Stage Metrics Bar
+ * 5 metric cards with 52px tabular counts, stage dots, and signature warm/lime styling.
  */
 export const StageMetricsBar: React.FC<StageMetricsBarProps> = ({
   counts,
@@ -25,18 +24,16 @@ export const StageMetricsBar: React.FC<StageMetricsBarProps> = ({
   onSelectStage,
 }) => {
   return (
-    <div className="bp-metrics-grid tk-counts" role="group" aria-label="Applications by stage">
+    <div className="tk-counts bp-metrics-grid" role="group" aria-label="Applications by stage">
       {counts.map(c => {
         const isActive = activeStage === c.key;
         const isHot = c.key === 'offer' && c.count > 0;
-        const intentColor = STAGE_INTENT_BORDER_COLOR[c.key] || '#8f99a8';
 
         return (
           <button
             key={c.key}
             type="button"
-            className={`bp-metric-card tk-count intent-${c.key} ${isHot ? 'hot' : ''} ${isActive ? 'is-active on' : ''}`}
-            style={{ borderLeftColor: intentColor }}
+            className={`tk-count bp-metric-card ${isHot ? 'hot' : ''} ${isActive ? 'on is-active' : ''}`}
             onClick={() => {
               const next = isActive ? 'all' : c.key;
               onSelectStage(next);
@@ -44,14 +41,12 @@ export const StageMetricsBar: React.FC<StageMetricsBarProps> = ({
             aria-pressed={isActive}
             title={`Filter by ${c.label} (${c.count})`}
           >
-            <div className="bp-metric-header tk-count-header">
-              <span className="bp-metric-label k">
-                <i className={`c-${c.key}`} aria-hidden="true" />
-                {c.label}
-              </span>
+            <div className="k tk-count-header">
+              <i className={`c-${c.key}`} aria-hidden="true" />
+              <span>{c.label}</span>
             </div>
-            <span className="bp-metric-value num tabular">{c.count}</span>
-            <small className="bp-metric-note">{c.note}</small>
+            <span className="num tabular">{c.count}</span>
+            <small>{c.note}</small>
           </button>
         );
       })}
