@@ -31,3 +31,5 @@ Thumbs.db
 # Your email data and the model trained on it (contains words from your mail)
 data/
 apps-script/Model.gs
+
+.agents/
