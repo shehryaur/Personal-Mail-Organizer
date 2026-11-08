@@ -4,7 +4,6 @@ import type { Email } from '../../types';
 import { Icon } from '../Icon';
 import {
   getStageBadgeProps,
-  getIntentColors,
   type BlueprintIntent,
 } from './blueprintTokens';
 import { formatNiceDate, getCountdown } from '../../utils/dateUtils';
@@ -37,6 +36,16 @@ const TRIAGE_ACTIONS: readonly TriageAction[] = [
 
 const PIPELINE_ORDER: readonly Lane[] = ['applied', 'assessment', 'interview', 'offer'] as const;
 
+const STAGE_LABELS: Record<string, string> = {
+  applied: 'Applied',
+  assessment: 'Assessment',
+  interview: 'Interview',
+  offer: 'Offer',
+  rejected: 'Rejected',
+  review: 'Review',
+  other: 'Other',
+};
+
 function getDecisionSourceMeta(source?: string): { label: string; icon: string } {
   switch (source) {
     case 'ai':
@@ -50,11 +59,9 @@ function getDecisionSourceMeta(source?: string): { label: string; icon: string }
 }
 
 /**
- * Palantir Blueprint Progressive Disclosure Application Detail Drawer
- *
- * 520px right-docked drawer supporting deep inspection of job applications,
- * chronological email thread history, expandable snippets, decision provenance,
- * confidence meter, and rapid keyboard-first status triage.
+ * Application Detail Drawer
+ * Deep inspection drawer supporting chronological email thread history,
+ * expandable snippets, decision provenance, confidence meter, and rapid keyboard-first status triage.
  */
 export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = ({
   card,
@@ -129,9 +136,6 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
   // Classifier confidence calculation
   const rawConfidence = card.app.confidence ?? 0;
   const confidencePct = Math.min(100, Math.max(0, Math.round(rawConfidence <= 1 ? rawConfidence * 100 : rawConfidence)));
-  const confidenceIntent: BlueprintIntent =
-    confidencePct >= 85 ? 'success' : confidencePct >= 65 ? 'primary' : 'warning';
-  const confidenceColors = getIntentColors(confidenceIntent);
 
   // Provenance metadata from latest email
   const latestEmail = card.app.emails.length > 0 ? card.app.emails[0] : null;
@@ -144,262 +148,126 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
 
   return (
     <div
-      className="bp-drawer-backdrop tk-drawer-backdrop"
+      className="tk-drawer-backdrop bp-drawer-backdrop"
       onClick={onClose}
       role="presentation"
     >
       <aside
-        className="bp-drawer bp-position-right bp-elevation-4"
+        className="tk-timeline-drawer tk-detail-drawer bp-drawer"
         role="dialog"
         aria-modal="true"
         aria-label={`Application details for ${card.app.company}`}
         onClick={e => e.stopPropagation()}
-        style={{
-          width: 'min(520px, 95vw)',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: 'var(--bp-white)',
-          boxShadow: 'var(--bp-elevation-4)',
-        }}
       >
         {/* ==================================================================
-            1. Header: Company title, role, status Intent badge, close button
+            1. Header: Company title, role, status badge, close button
             ================================================================== */}
-        <div
-          className="bp-drawer-header"
-          style={{
-            height: 'auto',
-            minHeight: 52,
-            padding: '10px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid var(--bp-border-color)',
-            backgroundColor: 'var(--bp-panel-bg)',
-            gap: 12,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+        <div className="tk-drawer-head bp-drawer-header">
+          <div className="tk-drawer-title-group" style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: 'var(--bp-text-dark)',
-                  letterSpacing: '-0.01em',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {card.app.company}
-              </h3>
-
-              <span className={statusBadge.className} style={statusBadge.style}>
-                {statusBadge.label}
-              </span>
-
+              <div className="tk-drawer-badge">
+                <Icon name="work" size={16} />
+                <span>Application Details</span>
+              </div>
               {hasOverride && (
-                <span
-                  className="bp-tag bp-round intent-warning bp-intent-warning"
-                  style={{
-                    fontSize: 10,
-                    padding: '1px 6px',
-                    fontWeight: 600,
-                  }}
-                  title="Stage manually overridden by user"
-                >
-                  Overridden
+                <span className="tk-chip warn" style={{ fontSize: 10, padding: '1px 7px', minHeight: 20 }}>
+                  Override Active
                 </span>
               )}
             </div>
 
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--bp-text-muted)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+              <h2 style={{ margin: 0 }}>{card.app.company}</h2>
+              <span className={`tk-stage-badge ${card.lane}`}>
+                <i className={`c-${card.lane}`} aria-hidden="true" />
+                {STAGE_LABELS[card.lane] || card.lane}
+              </span>
+            </div>
+
+            <div className="tk-drawer-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>{card.app.role || 'Role not specified'}</span>
-              {card.app.domain && (
-                <span style={{ opacity: 0.75 }}>· {card.app.domain}</span>
-              )}
+              {card.app.domain && <span style={{ opacity: 0.7 }}>· {card.app.domain}</span>}
             </div>
           </div>
 
           <button
             type="button"
-            className="bp-drawer-close"
+            className="tk-drawer-close bp-drawer-close"
             onClick={onClose}
             aria-label="Close application drawer"
             title="Close (Esc)"
           >
-            <Icon name="close" size={18} />
+            <Icon name="close" size={20} />
           </button>
         </div>
 
         {/* ==================================================================
             Drawer Body (Scrollable inspection content)
             ================================================================== */}
-        <div
-          className="bp-drawer-body"
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-          }}
-        >
-          {/* Quick Metrics Bar: Deadline, Stages Reached, Last Activity */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 8,
-            }}
-          >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Quick Metrics Bar: Deadline, Emails, Last Activity */}
+          <div className="tk-drawer-stats">
             {/* Status / Deadline */}
-            <div
-              className="bp-section-card"
-              style={{
-                padding: '8px 10px',
-                border: '1px solid var(--bp-border-color)',
-                borderRadius: 3,
-                backgroundColor: 'var(--bp-panel-bg)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
-            >
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--bp-text-muted)' }}>
-                Deadline
-              </span>
-              <span
-                className="bp-tabular-nums"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: deadlineCountdown?.isUrgent
-                    ? 'var(--bp-intent-danger)'
-                    : deadlineCountdown?.isWarning
-                    ? 'var(--bp-intent-warning)'
-                    : 'var(--bp-text-dark)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+            <div className="tk-drawer-stat-item">
+              <span className="label">Deadline</span>
+              <span className="val tabular num" style={{ fontSize: 16, marginTop: 4 }}>
                 {deadlineCountdown ? deadlineCountdown.text : card.chip?.text || 'None'}
               </span>
+              <small>{card.deadline ? 'Target completion' : 'No hard deadline'}</small>
             </div>
 
             {/* Total Messages */}
-            <div
-              className="bp-section-card"
-              style={{
-                padding: '8px 10px',
-                border: '1px solid var(--bp-border-color)',
-                borderRadius: 3,
-                backgroundColor: 'var(--bp-panel-bg)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
-            >
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--bp-text-muted)' }}>
-                Emails
+            <div className="tk-drawer-stat-item">
+              <span className="label">Emails</span>
+              <span className="val tabular num">
+                {card.app.emails.length}
               </span>
-              <span
-                className="bp-tabular-nums"
-                style={{ fontSize: 12, fontWeight: 600, color: 'var(--bp-text-dark)' }}
-              >
-                {card.app.emails.length} message{card.app.emails.length === 1 ? '' : 's'}
-              </span>
+              <small>in this thread</small>
             </div>
 
             {/* Last Activity */}
-            <div
-              className="bp-section-card"
-              style={{
-                padding: '8px 10px',
-                border: '1px solid var(--bp-border-color)',
-                borderRadius: 3,
-                backgroundColor: 'var(--bp-panel-bg)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
-            >
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--bp-text-muted)' }}>
-                Activity
-              </span>
-              <span
-                className="bp-tabular-nums"
-                style={{ fontSize: 12, fontWeight: 600, color: 'var(--bp-text-dark)' }}
-              >
+            <div className="tk-drawer-stat-item">
+              <span className="label">Last Activity</span>
+              <span className="val tabular num" style={{ fontSize: 16, marginTop: 4 }}>
                 {card.lastEmail || (card.app.lastActivity ? formatNiceDate(card.app.lastActivity) : '—')}
               </span>
+              <small>most recent date</small>
             </div>
           </div>
 
           {/* Stages Reached Progression Trail */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-              padding: '8px 10px',
-              backgroundColor: 'var(--bp-white)',
-              border: '1px solid var(--bp-border-color)',
-              borderRadius: 3,
-            }}
-          >
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--bp-text-muted)' }}>
+          <div className="tk-detail-section">
+            <span className="tk-detail-section-title">
+              <Icon name="timeline" size={15} />
               Pipeline Progress
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {PIPELINE_ORDER.map((stage, sIdx) => {
                 const reached = card.reached.has(stage);
                 const isCurrent = card.lane === stage;
-                const badgeProps = getStageBadgeProps(stage);
                 return (
                   <React.Fragment key={stage}>
-                    {sIdx > 0 && (
-                      <span style={{ color: 'var(--bp-text-disabled)', fontSize: 11 }}>→</span>
-                    )}
+                    {sIdx > 0 && <span style={{ color: 'var(--tk-muted)', fontSize: 12 }}>→</span>}
                     <span
-                      className={`bp-tag bp-round ${reached ? badgeProps.className : 'intent-neutral'}`}
+                      className={`tk-stage-badge ${stage}`}
                       style={{
-                        fontSize: 10,
-                        padding: '1px 6px',
-                        opacity: reached ? 1 : 0.45,
-                        fontWeight: isCurrent ? 700 : 500,
-                        borderStyle: isCurrent ? 'solid' : 'dashed',
-                        borderColor: isCurrent ? 'var(--bp-intent-primary)' : undefined,
+                        opacity: reached ? 1 : 0.4,
+                        fontWeight: isCurrent ? 800 : 600,
+                        border: isCurrent ? '2px solid var(--tk-ink)' : '2px solid transparent',
+                        padding: '4px 10px',
                       }}
                     >
-                      {badgeProps.label}
+                      <i className={`c-${stage}`} aria-hidden="true" />
+                      {STAGE_LABELS[stage] || stage}
                     </span>
                   </React.Fragment>
                 );
               })}
               {card.lane === 'rejected' && (
                 <>
-                  <span style={{ color: 'var(--bp-text-disabled)', fontSize: 11 }}>→</span>
-                  <span
-                    className="bp-tag bp-round intent-danger bp-intent-danger"
-                    style={{ fontSize: 10, padding: '1px 6px', fontWeight: 700 }}
-                  >
+                  <span style={{ color: 'var(--tk-muted)', fontSize: 12 }}>→</span>
+                  <span className="tk-stage-badge rejected" style={{ fontWeight: 800, border: '2px solid var(--tk-ink)', padding: '4px 10px' }}>
+                    <i className="c-rejected" aria-hidden="true" />
                     Rejected
                   </span>
                 </>
@@ -410,53 +278,24 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
           {/* ==================================================================
               2. Decision Provenance / Classifier Confidence Meter
               ================================================================== */}
-          <div
-            className="bp-section-card"
-            style={{
-              padding: '12px 14px',
-              backgroundColor: 'var(--bp-panel-bg)',
-              borderRadius: 3,
-              border: '1px solid var(--bp-border-color)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-            }}
-          >
+          <div className="tk-detail-section">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  color: 'var(--bp-text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <Icon name="psychology" size={15} />
+              <span className="tk-detail-section-title">
+                <Icon name="psychology" size={16} />
                 Decision Provenance & Confidence
               </span>
-              <span
-                className="bp-tabular-nums"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: confidenceColors.text,
-                }}
-              >
+              <span className="num tabular" style={{ fontSize: 13, fontWeight: 700, color: 'var(--tk-ink)' }}>
                 {confidencePct}% Confidence
               </span>
             </div>
 
-            {/* Visual 6px Progress Bar */}
+            {/* Visual 8px Progress Bar */}
             <div
               style={{
-                height: 6,
+                height: 8,
                 width: '100%',
-                backgroundColor: 'var(--bp-light-gray-3)',
-                borderRadius: 3,
+                backgroundColor: '#e6e6e1',
+                borderRadius: 4,
                 overflow: 'hidden',
               }}
               role="progressbar"
@@ -469,49 +308,27 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
                 style={{
                   height: '100%',
                   width: `${confidencePct}%`,
-                  backgroundColor: confidenceColors.solid,
-                  borderRadius: 3,
+                  backgroundColor: confidencePct >= 80 ? 'var(--tk-green)' : 'var(--tk-ink)',
+                  borderRadius: 4,
                   transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
               />
             </div>
 
             {/* Metadata Badges */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 6,
-                fontSize: 11,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--bp-text-dark)' }}>
-                <span style={{ color: 'var(--bp-text-muted)' }}>Source:</span>
-                <span
-                  className="bp-tag bp-round intent-neutral"
-                  style={{ fontSize: 11, padding: '1px 6px', display: 'flex', alignItems: 'center', gap: 4 }}
-                >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, fontSize: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: 'var(--tk-muted)' }}>Source:</span>
+                <span className="tk-chip info" style={{ fontSize: 11, padding: '2px 8px', minHeight: 22 }}>
                   <Icon name={decisionMeta.icon} size={13} />
-                  {decisionMeta.label}
+                  <span>{decisionMeta.label}</span>
                 </span>
               </div>
 
               {ruleMatched && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ color: 'var(--bp-text-muted)' }}>Rule:</span>
-                  <code
-                    style={{
-                      fontSize: 10,
-                      fontFamily: 'var(--bp-font-mono)',
-                      backgroundColor: 'var(--bp-white)',
-                      border: '1px solid var(--bp-border-color)',
-                      padding: '1px 5px',
-                      borderRadius: 3,
-                      color: 'var(--bp-text-dark)',
-                    }}
-                  >
+                  <span style={{ color: 'var(--tk-muted)' }}>Rule:</span>
+                  <code style={{ fontSize: 11, background: '#fff', padding: '2px 6px', borderRadius: 6, border: '1px solid #d9d9d3' }}>
                     {ruleMatched}
                   </code>
                 </div>
@@ -519,41 +336,17 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
             </div>
 
             {guardrailNote && (
-              <div
-                style={{
-                  fontSize: 11,
-                  color: 'var(--bp-intent-warning-text)',
-                  backgroundColor: 'var(--bp-intent-warning-bg)',
-                  border: '1px solid var(--bp-intent-warning-border)',
-                  borderRadius: 3,
-                  padding: '4px 8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
+              <div className="tk-chip warn" style={{ width: '100%', borderRadius: 10, padding: '6px 10px' }}>
                 <Icon name="info" size={14} />
                 <span>{guardrailNote}</span>
               </div>
             )}
 
             {hasOverride && (
-              <div
-                style={{
-                  fontSize: 11,
-                  color: 'var(--bp-intent-warning-text)',
-                  backgroundColor: 'var(--bp-intent-warning-bg)',
-                  border: '1px solid var(--bp-intent-warning-border)',
-                  borderRadius: 3,
-                  padding: '5px 8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
+              <div className="tk-chip warn" style={{ width: '100%', borderRadius: 10, padding: '6px 10px' }}>
                 <Icon name="warning" size={14} />
                 <span>
-                  Stage manually overridden to <b>{statusBadge.label}</b> (automated classifier original baseline).
+                  Stage manually set to <b>{statusBadge.label}</b> (overriding automated classifier).
                 </span>
               </div>
             )}
@@ -562,73 +355,33 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
           {/* ==================================================================
               3. Quick Status Triage Action Bar
               ================================================================== */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="tk-detail-section">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  color: 'var(--bp-text-muted)',
-                }}
-              >
-                Quick Stage Triage
+              <span className="tk-detail-section-title">
+                <Icon name="tune" size={15} />
+                Quick Stage Triage (1–5)
               </span>
               {hasOverride && (
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--bp-intent-warning)',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <Icon name="tune" size={13} />
-                  Override Active
+                <span style={{ fontSize: 11, color: 'var(--tk-amber-ink)', fontWeight: 600 }}>
+                  Override active
                 </span>
               )}
             </div>
 
-            <div
-              role="group"
-              aria-label="Quick Status Triage"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 6,
-              }}
-            >
+            <div role="group" aria-label="Quick Status Triage" className="tk-triage-grid">
               {TRIAGE_ACTIONS.map(action => {
                 const isCurrentLane = card.lane === action.lane;
-                const actionIntent = getIntentColors(action.intent);
 
                 return (
                   <button
                     key={action.lane}
                     type="button"
                     onClick={() => onSetStatus(card.app.id, action.lane)}
-                    className={`bp-btn ${isCurrentLane ? 'bp-btn-primary is-active' : ''}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '6px 8px',
-                      fontSize: 12,
-                      fontWeight: isCurrentLane ? 600 : 500,
-                      borderColor: isCurrentLane ? actionIntent.solid : undefined,
-                      backgroundColor: isCurrentLane ? actionIntent.bg : undefined,
-                      color: isCurrentLane ? actionIntent.text : undefined,
-                      transition: 'all 0.1s ease',
-                    }}
+                    className={`tk-triage-pill bp-btn ${isCurrentLane ? 'on is-active' : ''}`}
                     title={`Set stage: ${action.label} (Hotkey: [${action.hotkey}])`}
                   >
                     <span>{action.label}</span>
-                    <kbd className="bp-keycap" style={{ marginLeft: 4 }}>
-                      {action.hotkey}
-                    </kbd>
+                    <kbd className="tk-keycap bp-keycap">{action.hotkey}</kbd>
                   </button>
                 );
               })}
@@ -638,13 +391,8 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
                 type="button"
                 onClick={() => onResetStatus(card.app.id)}
                 disabled={!hasOverride}
-                className="bp-btn"
+                className="tk-triage-pill bp-btn"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '6px 8px',
-                  fontSize: 12,
                   opacity: hasOverride ? 1 : 0.45,
                   cursor: hasOverride ? 'pointer' : 'not-allowed',
                 }}
@@ -655,8 +403,8 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
                   Reset
                 </span>
                 <div style={{ display: 'flex', gap: 2 }}>
-                  <kbd className="bp-keycap">0</kbd>
-                  <kbd className="bp-keycap">u</kbd>
+                  <kbd className="tk-keycap bp-keycap">0</kbd>
+                  <kbd className="tk-keycap bp-keycap">u</kbd>
                 </div>
               </button>
             </div>
@@ -668,24 +416,17 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {/* Thread Header Controls */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  color: 'var(--bp-text-muted)',
-                }}
-              >
+              <span className="tk-detail-section-title">
+                <Icon name="mail" size={15} />
                 Email Thread History ({sortedEmails.length})
               </span>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button
                   type="button"
-                  className="bp-btn bp-btn-minimal"
+                  className="tk-page-btn"
                   onClick={() => setSortAscending(prev => !prev)}
-                  style={{ fontSize: 11, padding: '2px 6px', height: 22 }}
+                  style={{ fontSize: 11, padding: '3px 8px' }}
                   title="Toggle chronological vs reverse chronological order"
                 >
                   <Icon name="swap_vert" size={14} />
@@ -694,7 +435,7 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
 
                 <button
                   type="button"
-                  className="bp-btn bp-btn-minimal"
+                  className="tk-page-btn"
                   onClick={() => {
                     if (expandedEmailIds.size === sortedEmails.length) {
                       handleCollapseAll();
@@ -702,7 +443,7 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
                       handleExpandAll(sortedEmails);
                     }
                   }}
-                  style={{ fontSize: 11, padding: '2px 6px', height: 22 }}
+                  style={{ fontSize: 11, padding: '3px 8px' }}
                 >
                   <span>{expandedEmailIds.size === sortedEmails.length ? 'Collapse all' : 'Expand all'}</span>
                 </button>
@@ -710,40 +451,23 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
             </div>
 
             {/* Email Cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {sortedEmails.map((email, idx) => {
                 const isExpanded = expandedEmailIds.has(email.id);
-                const emailBadge = getStageBadgeProps(email.stage);
                 const isPrimaryTarget = email.id === card.openEmailId;
 
                 return (
                   <div
                     key={email.id}
-                    className="bp-card"
+                    className="tk-email-card bp-card"
                     style={{
-                      border: isPrimaryTarget
-                        ? '1px solid var(--bp-intent-primary-border)'
-                        : '1px solid var(--bp-border-color)',
-                      borderRadius: 3,
-                      backgroundColor: isPrimaryTarget ? 'rgba(16, 107, 163, 0.02)' : 'var(--bp-white)',
-                      boxShadow: 'var(--bp-elevation-0)',
-                      overflow: 'hidden',
-                      transition: 'border-color 0.1s ease',
+                      borderColor: isPrimaryTarget ? 'var(--tk-ink)' : '#e9e9e4',
                     }}
                   >
                     {/* Collapsible Header */}
                     <div
                       onClick={() => toggleExpand(email.id)}
-                      style={{
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 4,
-                        backgroundColor: isExpanded ? 'var(--bp-panel-bg)' : 'transparent',
-                        borderBottom: isExpanded ? '1px solid var(--bp-border-color)' : 'none',
-                        transition: 'background-color 0.1s ease',
-                      }}
+                      className="tk-email-header"
                       role="button"
                       tabIndex={0}
                       onKeyDown={e => {
@@ -755,76 +479,33 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
                       aria-expanded={isExpanded}
                     >
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              color: 'var(--bp-text-muted)',
-                              fontFamily: 'var(--bp-font-mono)',
-                              width: 18,
-                              textAlign: 'center',
-                            }}
-                          >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tk-muted)' }}>
                             #{sortAscending ? idx + 1 : sortedEmails.length - idx}
                           </span>
-                          <span
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: 'var(--bp-text-dark)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tk-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {email.subject || '(No subject)'}
                           </span>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                          <span
-                            className={emailBadge.className}
-                            style={{ ...emailBadge.style, fontSize: 10, padding: '1px 6px' }}
-                          >
-                            {emailBadge.label}
+                          <span className={`tk-stage-badge ${email.stage}`}>
+                            <i className={`c-${email.stage}`} aria-hidden="true" />
+                            {STAGE_LABELS[email.stage] || email.stage}
                           </span>
-                          <span
-                            className="bp-tabular-nums"
-                            style={{
-                              fontSize: 11,
-                              color: 'var(--bp-text-muted)',
-                              fontFamily: 'var(--bp-font-mono)',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
+                          <span className="tabular num" style={{ fontSize: 11, color: 'var(--tk-muted)', whiteSpace: 'nowrap' }}>
                             {formatNiceDate(email.receivedAt)}
                           </span>
-                          <Icon
-                            name={isExpanded ? 'expand_less' : 'expand_more'}
-                            size={18}
-                            style={{ color: 'var(--bp-text-muted)' }}
-                          />
+                          <Icon name={isExpanded ? 'expand_less' : 'expand_more'} size={18} />
                         </div>
                       </div>
 
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: 11,
-                          color: 'var(--bp-text-muted)',
-                        }}
-                      >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--tk-muted)' }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           From: {email.from}
                         </span>
                         {email.actionNeeded && (
-                          <span
-                            className="bp-tag intent-warning bp-intent-warning"
-                            style={{ fontSize: 9, padding: '0 4px', textTransform: 'uppercase', fontWeight: 700 }}
-                          >
+                          <span className="tk-chip warn" style={{ fontSize: 10, padding: '1px 6px', minHeight: 20 }}>
                             Action Needed
                           </span>
                         )}
@@ -832,108 +513,64 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
                     </div>
 
                     {/* Expandable Body */}
-                    <div style={{ padding: '10px 12px', fontSize: 12 }}>
-                      {isExpanded ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {email.deadlineResolved && (
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                fontSize: 11,
-                                padding: '4px 8px',
-                                backgroundColor: 'var(--bp-intent-warning-bg)',
-                                border: '1px solid var(--bp-intent-warning-border)',
-                                borderRadius: 3,
-                                color: 'var(--bp-intent-warning-text)',
-                              }}
-                            >
-                              <Icon name="schedule" size={14} />
-                              <span>
-                                Deadline: <b>{email.deadlineRaw || formatNiceDate(email.deadlineResolved)}</b>
-                              </span>
-                            </div>
-                          )}
+                    {isExpanded ? (
+                      <div className="tk-email-body">
+                        {email.deadlineResolved && (
+                          <div className="tk-chip warn" style={{ width: '100%', marginBottom: 10 }}>
+                            <Icon name="schedule" size={14} />
+                            <span>
+                              Deadline: <b>{email.deadlineRaw || formatNiceDate(email.deadlineResolved)}</b>
+                            </span>
+                          </div>
+                        )}
 
-                          <div
-                            style={{
-                              color: 'var(--bp-text-dark)',
-                              lineHeight: 1.5,
-                              whiteSpace: 'pre-wrap',
-                              wordBreak: 'break-word',
-                              fontSize: 12,
-                              fontFamily: 'var(--bp-font-family)',
-                            }}
-                          >
-                            {email.fullBody || email.snippet}
+                        <div style={{ color: 'var(--tk-ink)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 13, lineHeight: 1.6 }}>
+                          {email.fullBody || email.snippet}
+                        </div>
+
+                        {/* Action Bar for this email */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, marginTop: 12, borderTop: '1px solid #f0f0eb', fontSize: 12, color: 'var(--tk-muted)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>Confidence: <b className="num tabular">{Math.round(email.confidence <= 1 ? email.confidence * 100 : email.confidence)}%</b></span>
+                            <span>·</span>
+                            <span>Source: {email.decisionSource}</span>
                           </div>
 
-                          {/* Action Bar for this email */}
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              paddingTop: 8,
-                              borderTop: '1px solid var(--bp-border-muted)',
-                              fontSize: 11,
-                              color: 'var(--bp-text-muted)',
+                          <button
+                            type="button"
+                            className="tk-page-btn"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleOpenEmail(email.id);
                             }}
+                            style={{ fontSize: 12, padding: '4px 10px' }}
+                            title="Open this specific message in Gmail"
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span>
-                                Confidence:{' '}
-                                <b className="bp-tabular-nums">
-                                  {Math.round(email.confidence <= 1 ? email.confidence * 100 : email.confidence)}%
-                                </b>
-                              </span>
-                              <span>·</span>
-                              <span>Source: {email.decisionSource}</span>
-                            </div>
-
-                            <button
-                              type="button"
-                              className="bp-btn bp-btn-minimal"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleOpenEmail(email.id);
-                              }}
-                              style={{
-                                fontSize: 11,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                color: 'var(--bp-intent-primary)',
-                                padding: '2px 8px',
-                                height: 24,
-                              }}
-                              title="Open this specific message in Gmail"
-                            >
-                              <Icon name="open_in_new" size={14} />
-                              <span>Open in Gmail</span>
-                            </button>
-                          </div>
+                            <Icon name="open_in_new" size={14} />
+                            <span>Open in Gmail</span>
+                          </button>
                         </div>
-                      ) : (
-                        /* Collapsed Preview */
-                        <div
-                          style={{
-                            color: 'var(--bp-text-muted)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            lineHeight: 1.4,
-                            cursor: 'pointer',
-                          }}
-                          onClick={() => toggleExpand(email.id)}
-                        >
-                          {email.snippet || '(No snippet available)'}
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      /* Collapsed Preview */
+                      <div
+                        style={{
+                          padding: '8px 16px 12px',
+                          color: 'var(--tk-muted)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          fontSize: 12,
+                          lineHeight: 1.5,
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => toggleExpand(email.id)}
+                      >
+                        {email.snippet || '(No snippet available)'}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -945,57 +582,47 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
             5. Footer: Close button & Primary "Open in Gmail" action
             ================================================================== */}
         <div
-          className="bp-drawer-footer"
           style={{
-            padding: '10px 16px',
-            borderTop: '1px solid var(--bp-border-color)',
-            backgroundColor: 'var(--bp-panel-bg)',
+            paddingTop: 16,
+            borderTop: '1px solid var(--tk-line)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            flexShrink: 0,
+            marginTop: 'auto',
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 11,
-              color: 'var(--bp-text-muted)',
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--tk-muted)' }}>
             <span>Nav:</span>
-            <kbd className="bp-keycap">j</kbd>
+            <kbd className="tk-keycap bp-keycap">j</kbd>
             <span>/</span>
-            <kbd className="bp-keycap">k</kbd>
+            <kbd className="tk-keycap bp-keycap">k</kbd>
             <span style={{ margin: '0 4px' }}>·</span>
             <span>Triage:</span>
-            <kbd className="bp-keycap">1</kbd>
+            <kbd className="tk-keycap bp-keycap">1</kbd>
             <span>–</span>
-            <kbd className="bp-keycap">5</kbd>
+            <kbd className="tk-keycap bp-keycap">5</kbd>
             <span style={{ margin: '0 4px' }}>·</span>
-            <kbd className="bp-keycap">Esc</kbd>
+            <kbd className="tk-keycap bp-keycap">Esc</kbd>
             <span>closes</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               type="button"
-              className="bp-btn"
+              className="tk-page-btn bp-btn"
               onClick={onClose}
+              style={{ height: 38, padding: '0 16px' }}
             >
               Close
             </button>
             <button
               type="button"
-              className="bp-btn bp-btn-primary"
+              className="tk-cta bp-btn-primary"
               onClick={() => handleOpenEmail(card.openEmailId)}
               title="Open the primary email thread in Gmail"
-              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              <Icon name="open_in_new" size={15} />
               <span>Open in Gmail</span>
+              <span><Icon name="open_in_new" size={16} /></span>
             </button>
           </div>
         </div>
