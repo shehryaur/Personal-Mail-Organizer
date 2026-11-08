@@ -22,9 +22,9 @@ export interface DateRangeControlsProps {
 }
 
 /**
- * Palantir Blueprint Compact Header Bar & Date Range Controls
- * 36px header bar with presets (1w, 1m, 3m, 1y, All, Custom), bounds validation,
- * custom date inputs, timeline toggle, settings, and refresh buttons.
+ * Header Bar & Date Range Controls
+ * Warm typography and pill presets (1w, 1m, 3m, 1y, All, Custom),
+ * custom date inputs, timeline toggle, shortcuts, settings, and refresh buttons.
  */
 export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
   range,
@@ -42,20 +42,19 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
   onOpenShortcuts,
 }) => {
   return (
-    <div className="bp-navbar-compact tk-head">
-      <div className="bp-navbar-title-group grow">
+    <div className="tk-head bp-navbar-compact">
+      <div className="grow bp-navbar-title-group">
         <h1>Dashboard</h1>
-        <div className="bp-navbar-divider" aria-hidden="true" />
-        <div className="bp-navbar-sub sub">Job applications</div>
+        <span className="sub bp-navbar-sub">Job applications</span>
       </div>
 
-      <div className="bp-navbar-actions tk-range-controls" role="group" aria-label="Time period and date filters">
-        <div className="bp-btn-group tk-seg" role="group" aria-label="Time period presets">
+      <div className="tk-range-controls bp-navbar-actions" role="group" aria-label="Time period and date filters">
+        <div className="tk-seg bp-btn-group" role="group" aria-label="Time period presets">
           {RANGES.map(r => (
             <button
               key={r.key}
               type="button"
-              className={range === r.key ? 'is-active on' : ''}
+              className={range === r.key ? 'on is-active' : ''}
               aria-pressed={range === r.key}
               onClick={() => onPickRange(r.key)}
             >
@@ -64,7 +63,7 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
           ))}
           <button
             type="button"
-            className={range === 'custom' ? 'is-active on' : ''}
+            className={range === 'custom' ? 'on is-active' : ''}
             aria-pressed={range === 'custom'}
             onClick={() => onPickRange('custom')}
           >
@@ -73,24 +72,24 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
         </div>
 
         {range === 'custom' && (
-          <div className="bp-date-range tk-date-range active" role="group" aria-label="Date range">
-            <label className="bp-date-label tk-date-label">
+          <div className="tk-date-range bp-date-range active" role="group" aria-label="Date range">
+            <label className="tk-date-label bp-date-label">
               <span className="tk-date-tag">From</span>
               <input
                 type="date"
-                className="bp-date-input tk-date-input"
+                className="tk-date-input bp-date-input"
                 value={customFrom}
                 max={customTo || undefined}
                 onChange={e => onFromChange(e.target.value)}
                 aria-label="Filter from date"
               />
             </label>
-            <span className="bp-date-sep tk-date-sep">to</span>
-            <label className="bp-date-label tk-date-label">
+            <span className="tk-date-sep bp-date-sep">to</span>
+            <label className="tk-date-label bp-date-label">
               <span className="tk-date-tag">To</span>
               <input
                 type="date"
-                className="bp-date-input tk-date-input"
+                className="tk-date-input bp-date-input"
                 value={customTo}
                 min={customFrom || undefined}
                 onChange={e => onToChange(e.target.value)}
@@ -116,18 +115,18 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
       >
         <Icon name="bar_chart" size={18} />
         <span>Timeline</span>
-        <kbd className="bp-keycap" style={{ marginLeft: 4 }}>t</kbd>
+        <kbd className="tk-keycap bp-keycap" style={{ marginLeft: 4 }}>t</kbd>
       </button>
 
       {onOpenShortcuts && (
         <button
           type="button"
-          className="tk-icon-btn bp-btn-minimal"
+          className="tk-icon-btn"
           onClick={onOpenShortcuts}
           aria-label="Keyboard Shortcuts"
           title="Keyboard Shortcuts (?)"
         >
-          <kbd className="bp-keycap">?</kbd>
+          <kbd className="tk-keycap bp-keycap">?</kbd>
         </button>
       )}
 
@@ -146,14 +145,13 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
       {onRefresh && (
         <button
           type="button"
-          className="bp-btn bp-btn-primary tk-cta"
+          className="tk-cta"
           onClick={onRefresh}
           disabled={refreshing}
+          aria-label="Check for new emails"
         >
-          {refreshing ? 'Checking…' : 'Refresh'}
-          <span>
-            <Icon name="refresh" size={18} className={refreshing ? 'animate-spin' : ''} />
-          </span>
+          <span>{refreshing ? 'Checking…' : 'Check for new emails'}</span>
+          <span><Icon name="refresh" size={16} /></span>
         </button>
       )}
     </div>
