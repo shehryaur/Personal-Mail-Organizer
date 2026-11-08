@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import type { Card, Lane } from '../../utils/board';
-import { getStageBadgeProps } from './blueprintTokens';
 
 export interface ApplicationTableProps {
   cards: Card[];
@@ -25,10 +24,20 @@ export interface ApplicationTableProps {
 
 const PROGRESS_LANES: Lane[] = ['applied', 'assessment', 'interview', 'offer'];
 
+const STAGE_LABELS: Record<string, string> = {
+  applied: 'Applied',
+  assessment: 'Assessment',
+  interview: 'Interview',
+  offer: 'Offer',
+  rejected: 'Rejected',
+  review: 'Review',
+  other: 'Other',
+};
+
 /**
- * Palantir Blueprint High-Density Application Data Table
- * Features 32px rows, sticky header, zebra striping, Cobalt selection bar,
- * keyboard focus ring, stage tags, countdown chips, filter pills, search, and pagination.
+ * Application Data Table
+ * Fast, dense, warm table view featuring row selection, keyboard navigation,
+ * stage badges, countdown chips, filter pills, search, and pagination.
  */
 export const ApplicationTable: React.FC<ApplicationTableProps> = ({
   cards,
@@ -63,22 +72,22 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
   const endIdx = Math.min((page + 1) * pageSize, totalFilteredCount);
 
   return (
-    <div className="bp-section-card tk-card" aria-label="Applications table view">
-      <div className="bp-card-head tk-card-head">
+    <div className="tk-card bp-section-card" aria-label="Applications table view">
+      <div className="tk-card-head bp-card-head">
         <h2>Where every application stands</h2>
         <span className="aside">
           {activeStage !== 'all'
             ? `Filtered to ${focusName || activeStage}. Click stage again to show all.`
-            : 'Click a row to open its latest email'}
+            : 'Click a row to inspect details and email thread'}
         </span>
       </div>
 
       <div className="tk-table-view">
-        <div className="bp-table-toolbar tk-table-controls">
-          <div className="bp-table-filters tk-table-filters" role="group" aria-label="Stage filters">
+        <div className="tk-table-controls bp-table-toolbar">
+          <div className="tk-table-filters bp-table-filters" role="group" aria-label="Stage filters">
             <button
               type="button"
-              className={`bp-table-pill tk-table-pill ${activeStage === 'all' ? 'is-active on' : ''}`}
+              className={`tk-table-pill bp-table-pill ${activeStage === 'all' ? 'on is-active' : ''}`}
               onClick={() => onSelectStage('all')}
               aria-pressed={activeStage === 'all'}
             >
@@ -88,7 +97,7 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
               <button
                 key={l.key}
                 type="button"
-                className={`bp-table-pill tk-table-pill ${activeStage === l.key ? 'is-active on' : ''}`}
+                className={`tk-table-pill bp-table-pill ${activeStage === l.key ? 'on is-active' : ''}`}
                 onClick={() => onSelectStage(activeStage === l.key ? 'all' : l.key)}
                 aria-pressed={activeStage === l.key}
               >
@@ -97,24 +106,24 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
             ))}
           </div>
 
-          <div className="bp-search-input-group">
+          <div className="tk-search-wrapper bp-search-input-group">
             <input
               ref={searchInputRef}
               type="text"
-              className="bp-search-input tk-table-search"
-              placeholder="Filter by company or role..."
+              className="tk-table-search bp-search-input"
+              placeholder="Filter by company or role... (/)"
               value={searchQuery}
               onChange={e => onSearchChange(e.target.value)}
               aria-label="Filter applications by company or role"
             />
             <span className="bp-key-hint" title="Press / to focus search">
-              <kbd>/</kbd>
+              <kbd className="tk-keycap bp-keycap">/</kbd>
             </span>
           </div>
         </div>
 
-        <div className="bp-table-container tk-table-container">
-          <table className="bp-html-table tk-table">
+        <div className="tk-table-container bp-table-container">
+          <table className="tk-table bp-html-table">
             <thead>
               <tr>
                 <th style={{ width: '22%' }}>Company</th>
@@ -128,20 +137,19 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
             <tbody>
               {cards.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: 'var(--bp-text-muted)' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: 'var(--tk-muted)' }}>
                     No applications found matching your filter.
                   </td>
                 </tr>
               ) : (
                 cards.map((c, index) => {
                   const isSelected = index === selectedRowIndex;
-                  const badge = getStageBadgeProps(c.lane);
 
                   return (
                     <tr
                       key={c.app.id}
                       ref={isSelected ? selectedRowRef : undefined}
-                      className={`bp-table-row tk-table-row ${isSelected ? 'is-selected has-focus' : ''}`}
+                      className={`tk-table-row bp-table-row ${isSelected ? 'selected is-selected' : ''}`}
                       onClick={() => {
                         onSelectRow(index);
                         onInspectCard(c, index);
@@ -152,10 +160,11 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
                       <td>
                         <b>{c.app.company}</b>
                       </td>
-                      <td style={{ color: 'var(--bp-text-muted)' }}>{c.app.role || '—'}</td>
+                      <td className="tk-muted-cell">{c.app.role || '—'}</td>
                       <td>
-                        <span className={`${badge.className} c-${c.lane}`} style={badge.style}>
-                          {badge.label}
+                        <span className={`tk-stage-badge ${c.lane}`}>
+                          <i className={`c-${c.lane}`} aria-hidden="true" />
+                          {STAGE_LABELS[c.lane] || c.lane}
                         </span>
                       </td>
                       <td>
@@ -171,7 +180,7 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
                           {c.lane === 'rejected' && <i className="x" />}
                         </span>
                       </td>
-                      <td style={{ color: 'var(--bp-text-muted)', fontSize: 12 }} className="tabular num">
+                      <td className="tk-muted-cell tabular num">
                         {c.lastEmail}
                       </td>
                     </tr>
@@ -182,28 +191,28 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
           </table>
         </div>
 
-        <div className="bp-table-pagination tk-table-pagination">
+        <div className="tk-table-pagination bp-table-pagination">
           <span>
             Showing {startIdx}–{endIdx} of {totalFilteredCount}
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               type="button"
-              className="bp-page-btn tk-page-btn"
+              className="tk-page-btn bp-page-btn"
               disabled={page === 0}
               onClick={onPrevPage}
               title="Previous page ([)"
             >
-              ← Previous <kbd className="bp-keycap" style={{ marginLeft: 4 }}>[</kbd>
+              ← Previous <kbd className="tk-keycap bp-keycap" style={{ marginLeft: 4 }}>[</kbd>
             </button>
             <button
               type="button"
-              className="bp-page-btn tk-page-btn"
+              className="tk-page-btn bp-page-btn"
               disabled={page >= totalPages - 1}
               onClick={onNextPage}
               title="Next page (])"
             >
-              Next → <kbd className="bp-keycap" style={{ marginLeft: 4 }}>]</kbd>
+              Next → <kbd className="tk-keycap bp-keycap" style={{ marginLeft: 4 }}>]</kbd>
             </button>
           </div>
         </div>
