@@ -1,13 +1,18 @@
-// The Job Tracker dashboard: counts per stage, the to-do list, weekly counts and
-// every application in a dense, searchable table. Same component in Gmail (extension)
-// and in the reviewers' demo.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { Application } from '../../types';
 import { buildBoard, type Lane } from '../../utils/board';
 import { Icon } from '../Icon';
 import './tracker.css';
 
-interface Props {
+import { StageMetricsBar } from './StageMetricsBar';
+import { ApplicationTable } from './ApplicationTable';
+import { DateRangeControls } from './DateRangeControls';
+import { type Range, RANGES, RANGE_KEY, FROM_KEY, TO_KEY } from './dateRangeConstants';
+import { ApplicationDetailDrawer } from './ApplicationDetailDrawer';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { useTrackerHotkeys } from './useTrackerHotkeys';
+
+export interface Props {
   applications: Application[];
   now: number;
   onOpenEmail: (emailId: string) => void;
@@ -25,17 +30,8 @@ const CHARTS = {
 } as const;
 type Chart = keyof typeof CHARTS;
 
-const RANGES = [
-  { key: '7', label: '1 week', days: 7 },
-  { key: '30', label: '1 month', days: 30 },
-  { key: '90', label: '3 months', days: 90 },
-  { key: '365', label: '1 year', days: 365 },
-  { key: 'all', label: 'All', days: 0 },
-] as const;
-type Range = (typeof RANGES)[number]['key'] | 'custom';
-const RANGE_KEY = 'trackerRange';
-const FROM_KEY = 'trackerCustomFrom';
-const TO_KEY = 'trackerCustomTo';
+const OVERRIDE_KEY = 'trackerStatusOverrides';
+const TABLE_PAGE_SIZE = 12;
 
 function toDateInputValue(timestamp: number): string {
   const d = new Date(timestamp);
@@ -66,7 +62,57 @@ const savedRange = (): Range => {
   }
 };
 
-export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEmail, onRefresh, refreshing, updatedLabel, banner, onOpenSettings }) => {
+function loadStatusOverrides(): Record<string, Lane> {
+  try {
+    const raw = window.localStorage.getItem(OVERRIDE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed as Record<string, Lane>;
+      }
+    }
+  } catch {}
+  return {};
+}
+
+function saveStatusOverrides(overrides: Record<string, Lane>): void {
+  try {
+    window.localStorage.setItem(OVERRIDE_KEY, JSON.stringify(overrides));
+  } catch {}
+}
+
+export const TrackerDashboard: React.FC<Props> = ({
+  applications,
+  now,
+  onOpenEmail,
+  onRefresh,
+  refreshing,
+  updatedLabel,
+  banner,
+  onOpenSettings,
+}) => {
+  // 1. Status Overrides State
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, Lane>>(loadStatusOverrides);
+
+  // Apply status overrides directly to applications so board counts and lanes re-aggregate dynamically
+  const appsWithOverrides = useMemo(() => {
+    if (Object.keys(statusOverrides).length === 0) return applications;
+    return applications.map(app => {
+      const override = statusOverrides[app.id];
+      if (!override) return app;
+      const updatedEmails = app.emails.map(e => ({
+        ...e,
+        stage: override,
+      }));
+      return {
+        ...app,
+        emails: updatedEmails,
+        stage: override === 'rejected' ? 'closed' : app.stage,
+      };
+    });
+  }, [applications, statusOverrides]);
+
+  // 2. Date Range State
   const [range, setRange] = useState<Range>(savedRange);
   const [customFrom, setCustomFrom] = useState<string>(() => {
     try {
@@ -86,9 +132,24 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
     return toDateInputValue(now);
   });
 
+  // Table & UI state
+  const [tableStage, setTableStage] = useState<string>('all');
+  const [tableSearch, setTableSearch] = useState<string>('');
+  const [tablePage, setTablePage] = useState<number>(0);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number>(0);
+  const [focus, setFocus] = useState<Lane | null>(null);
+  const [chart, setChart] = useState<Chart>('applied');
+  const [showTimeline, setShowTimeline] = useState<boolean>(false);
+  const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Date range handlers with synchronous pagination/selection reset
   const pickRange = (r: Range) => {
     setRange(r);
-    try { window.localStorage.setItem(RANGE_KEY, r); } catch { /* remembered for this visit only */ }
+    setTablePage(0);
+    setSelectedRowIndex(0);
+    try { window.localStorage.setItem(RANGE_KEY, r); } catch {}
     if (r !== 'custom') {
       const days = RANGES.find(x => x.key === r)?.days ?? 0;
       const toStr = toDateInputValue(now);
@@ -105,6 +166,8 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
   const handleFromChange = (val: string) => {
     setCustomFrom(val);
     setRange('custom');
+    setTablePage(0);
+    setSelectedRowIndex(0);
     try {
       window.localStorage.setItem(FROM_KEY, val);
       window.localStorage.setItem(RANGE_KEY, 'custom');
@@ -114,14 +177,28 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
   const handleToChange = (val: string) => {
     setCustomTo(val);
     setRange('custom');
+    setTablePage(0);
+    setSelectedRowIndex(0);
     try {
       window.localStorage.setItem(TO_KEY, val);
       window.localStorage.setItem(RANGE_KEY, 'custom');
     } catch {}
   };
 
-  // Counts and the board show what happened in the chosen period; To do always
-  // uses everything, since a deadline matters whenever its email arrived
+  const handleSelectStage = (stage: string) => {
+    setTableStage(stage);
+    setFocus(stage === 'all' ? null : (stage as Lane));
+    setTablePage(0);
+    setSelectedRowIndex(0);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setTableSearch(query);
+    setTablePage(0);
+    setSelectedRowIndex(0);
+  };
+
+  // Filter applications within active date range
   const inRange = useMemo(() => {
     if (range === 'custom') {
       const fromTime = customFrom && !isNaN(new Date(`${customFrom}T00:00:00`).getTime())
@@ -131,7 +208,7 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
         ? new Date(`${customTo}T23:59:59.999`).getTime()
         : Infinity;
 
-      return applications
+      return appsWithOverrides
         .map(a => {
           const matchedEmails = a.emails.filter(e => {
             const t = new Date(e.receivedAt).getTime();
@@ -149,19 +226,20 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
         .filter(a => a.emails.length > 0);
     }
     const days = RANGES.find(r => r.key === range)?.days ?? 0;
-    if (!days) return applications;
+    if (!days) return appsWithOverrides;
     const since = now - days * 86400000;
-    return applications
+    return appsWithOverrides
       .map(a => ({ ...a, emails: a.emails.filter(e => new Date(e.receivedAt).getTime() >= since) }))
       .filter(a => a.emails.length > 0);
-  }, [applications, now, range, customFrom, customTo]);
+  }, [appsWithOverrides, now, range, customFrom, customTo]);
 
-  const everything = useMemo(() => buildBoard(applications, now), [applications, now]);
+  // Aggregate boards with full memoization preserving compiler performance
+  const everything = useMemo(() => buildBoard(appsWithOverrides, now), [appsWithOverrides, now]);
   const periodBoard = useMemo(() => buildBoard(inRange, now), [inRange, now]);
-  const board = { ...periodBoard, tasks: everything.tasks };
-  const [focus, setFocus] = useState<Lane | null>(null);
-  const [chart, setChart] = useState<Chart>('applied');
-  const [showTimeline, setShowTimeline] = useState<boolean>(false);
+  const board = useMemo(
+    () => ({ ...periodBoard, tasks: everything.tasks }),
+    [periodBoard, everything.tasks]
+  );
 
   const series = board.weekly[chart];
   const max = Math.max(1, ...series);
@@ -174,28 +252,8 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
   const avgCount = useMemo(() => Math.round(totalCount / (series.length || 1)), [totalCount, series.length]);
   const focusName = focus ? board.lanes.find(l => l.key === focus)?.name : null;
 
-  // Close timeline drawer on Escape
-  useEffect(() => {
-    if (!showTimeline) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowTimeline(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showTimeline]);
-
-  // Dense Table state
-  const [tableStage, setTableStage] = useState<string>('all');
-  const [tableSearch, setTableSearch] = useState<string>('');
-  const [tablePage, setTablePage] = useState<number>(0);
-  const TABLE_PAGE_SIZE = 12;
-
-  // Reset pagination if date filter, stage or search changes
-  useEffect(() => {
-    setTablePage(0);
-  }, [range, customFrom, customTo, tableStage, tableSearch]);
-
-  const allCards = useMemo(() => board.lanes.flatMap(l => l.cards), [board.lanes]);
+  // Flattened cards and table filtering
+  const allCards = useMemo(() => periodBoard.lanes.flatMap(l => l.cards), [periodBoard.lanes]);
 
   const filteredTableCards = useMemo(() => {
     let list = allCards;
@@ -208,228 +266,170 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
   }, [allCards, tableStage, tableSearch]);
 
   const totalPages = Math.ceil(filteredTableCards.length / TABLE_PAGE_SIZE) || 1;
-  const pagedCards = filteredTableCards.slice(tablePage * TABLE_PAGE_SIZE, (tablePage + 1) * TABLE_PAGE_SIZE);
+  // Derive safe page index directly without triggering cascading render effect
+  const safePage = Math.min(tablePage, Math.max(0, totalPages - 1));
+  const pagedCards = useMemo(
+    () => filteredTableCards.slice(safePage * TABLE_PAGE_SIZE, (safePage + 1) * TABLE_PAGE_SIZE),
+    [filteredTableCards, safePage]
+  );
+
+  // Derive safe row index and active card directly to avoid set-state-in-effect hazards
+  const safeRowIndex = pagedCards.length > 0 ? Math.min(selectedRowIndex, pagedCards.length - 1) : 0;
+  const selectedCard = pagedCards[safeRowIndex] ?? null;
+
+  // Status Triage Handlers with instant localStorage persistence
+  const handleSetStatus = (appId: string, lane: Lane) => {
+    setStatusOverrides(prev => {
+      const updated = { ...prev, [appId]: lane };
+      saveStatusOverrides(updated);
+      return updated;
+    });
+  };
+
+  const handleResetStatus = (appId: string) => {
+    setStatusOverrides(prev => {
+      const updated = { ...prev };
+      delete updated[appId];
+      saveStatusOverrides(updated);
+      return updated;
+    });
+  };
+
+  const handleTriageStatus = (stage: string) => {
+    const targetCard = pagedCards[safeRowIndex];
+    if (!targetCard) return;
+    const appId = targetCard.app.id;
+    if (stage === 'reset') {
+      handleResetStatus(appId);
+    } else {
+      handleSetStatus(appId, stage as Lane);
+    }
+  };
+
+  // Keyboard Hotkeys Engine
+  useTrackerHotkeys({
+    activeRowIndex: safeRowIndex,
+    totalRows: pagedCards.length,
+    onSelectRow: index => setSelectedRowIndex(index),
+    onInspectRow: index => {
+      setSelectedRowIndex(index);
+      setShowTimeline(false);
+      setIsDrawerOpen(true);
+    },
+    onTriageStatus: handleTriageStatus,
+    onFocusSearch: () => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+        searchInputRef.current.select();
+      }
+    },
+    onToggleShortcuts: () => setShowShortcuts(prev => !prev),
+    onToggleTimeline: () => {
+      setShowTimeline(prev => {
+        const next = !prev;
+        if (next) setIsDrawerOpen(false);
+        return next;
+      });
+    },
+    onNextPage: () => {
+      if (safePage < totalPages - 1) {
+        setTablePage(safePage + 1);
+        setSelectedRowIndex(0);
+      }
+    },
+    onPrevPage: () => {
+      if (safePage > 0) {
+        setTablePage(safePage - 1);
+        setSelectedRowIndex(0);
+      }
+    },
+    onDismiss: () => {
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+      }
+    },
+    isDrawerOpen,
+    isShortcutsOpen: showShortcuts,
+    isTimelineOpen: showTimeline,
+  });
 
   return (
-    <section className="tk" aria-label="Job Tracker">
-      <div className="tk-head">
-        <div className="grow">
-          <h1>Dashboard</h1>
-          <div className="sub">Job applications</div>
-        </div>
-        <div className="tk-range-controls" role="group" aria-label="Time period and date filters">
-          <div className="tk-seg" role="group" aria-label="Time period presets">
-            {RANGES.map(r => (
-              <button
-                key={r.key}
-                className={range === r.key ? 'on' : ''}
-                aria-pressed={range === r.key}
-                onClick={() => pickRange(r.key)}
-              >
-                {r.label}
-              </button>
-            ))}
-            <button
-              className={range === 'custom' ? 'on' : ''}
-              aria-pressed={range === 'custom'}
-              onClick={() => pickRange('custom')}
-            >
-              Custom
-            </button>
-          </div>
-
-          {range === 'custom' && (
-            <div className="tk-date-range active" role="group" aria-label="Date range">
-              <label className="tk-date-label">
-                <span className="tk-date-tag">From</span>
-                <input
-                  type="date"
-                  className="tk-date-input"
-                  value={customFrom}
-                  max={customTo || undefined}
-                  onChange={e => handleFromChange(e.target.value)}
-                  aria-label="Filter from date"
-                />
-              </label>
-              <span className="tk-date-sep">to</span>
-              <label className="tk-date-label">
-                <span className="tk-date-tag">To</span>
-                <input
-                  type="date"
-                  className="tk-date-input"
-                  value={customTo}
-                  min={customFrom || undefined}
-                  onChange={e => handleToChange(e.target.value)}
-                  aria-label="Filter to date"
-                />
-              </label>
-            </div>
-          )}
-        </div>
-
-        {updatedLabel && <span className="tk-updated" aria-live="polite">{refreshing ? 'Checking for new emails…' : updatedLabel}</span>}
-        <button
-          className={`tk-timeline-btn${showTimeline ? ' on' : ''}`}
-          onClick={() => setShowTimeline(true)}
-          aria-label="Open timeline"
-          title="Open activity timeline"
-        >
-          <Icon name="bar_chart" size={18} />
-          <span>Timeline</span>
-        </button>
-        {onOpenSettings && (
-          <button className="tk-icon-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings">
-            <Icon name="settings" size={20} />
-          </button>
-        )}
-        {onRefresh && (
-          <button className="tk-cta" onClick={onRefresh} disabled={refreshing}>
-            {refreshing ? 'Checking…' : 'Refresh'}
-            <span><Icon name="refresh" size={18} className={refreshing ? 'animate-spin' : ''} /></span>
-          </button>
-        )}
-      </div>
+    <section className="bp-dashboard tk" aria-label="Job Tracker">
+      <DateRangeControls
+        range={range}
+        onPickRange={pickRange}
+        customFrom={customFrom}
+        onFromChange={handleFromChange}
+        customTo={customTo}
+        onToChange={handleToChange}
+        showTimeline={showTimeline}
+        onToggleTimeline={() => {
+          setShowTimeline(prev => {
+            const next = !prev;
+            if (next) setIsDrawerOpen(false);
+            return next;
+          });
+        }}
+        onOpenSettings={onOpenSettings}
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+        updatedLabel={updatedLabel}
+        onOpenShortcuts={() => setShowShortcuts(true)}
+      />
 
       {banner}
 
-      <div className="tk-counts" role="group" aria-label="Applications by stage">
-        {board.counts.map(c => (
-          <button
-            key={c.key}
-            className={`tk-count${c.key === 'offer' && c.count > 0 ? ' hot' : ''}${tableStage === c.key ? ' on' : ''}`}
-            onClick={() => {
-              const next = tableStage === c.key ? 'all' : c.key;
-              setTableStage(next);
-              setFocus(next === 'all' ? null : next as Lane);
-              setTablePage(0);
-            }}
-            aria-pressed={tableStage === c.key}
-          >
-            <span className="k"><i className={`c-${c.key}`} />{c.label}</span>
-            <span className="num">{c.count}</span>
-            <small>{c.note}</small>
-          </button>
-        ))}
-      </div>
+      <StageMetricsBar
+        counts={board.counts}
+        activeStage={tableStage}
+        onSelectStage={handleSelectStage}
+      />
 
-      <div className="tk-card">
-        <div className="tk-card-head">
-          <h2>Where every application stands</h2>
-          <span className="aside">
-            {tableStage !== 'all' ? `Filtered to ${focusName || tableStage}. Click stage again to show all.` : 'Click a row to open its latest email'}
-          </span>
-        </div>
-
-        <div className="tk-table-view">
-          <div className="tk-table-controls">
-            <div className="tk-table-filters">
-              <button
-                className={`tk-table-pill ${tableStage === 'all' ? 'on' : ''}`}
-                onClick={() => { setTableStage('all'); setFocus(null); setTablePage(0); }}
-              >
-                All ({allCards.length})
-              </button>
-              {board.lanes.map(l => (
-                <button
-                  key={l.key}
-                  className={`tk-table-pill ${tableStage === l.key ? 'on' : ''}`}
-                  onClick={() => {
-                    const next = tableStage === l.key ? 'all' : l.key;
-                    setTableStage(next);
-                    setFocus(next === 'all' ? null : next as Lane);
-                    setTablePage(0);
-                  }}
-                >
-                  {l.name} ({l.cards.length})
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
-              className="tk-table-search"
-              placeholder="Filter by company or role..."
-              value={tableSearch}
-              onChange={e => { setTableSearch(e.target.value); setTablePage(0); }}
-            />
-          </div>
-
-          <div className="tk-table-container">
-            <table className="tk-table">
-              <thead>
-                <tr>
-                  <th>Company</th>
-                  <th>Role</th>
-                  <th>Stage</th>
-                  <th>Status / Deadline</th>
-                  <th>Stages Reached</th>
-                  <th>Last Activity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedCards.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: 'var(--tk-muted)' }}>
-                      No applications found matching your filter.
-                    </td>
-                  </tr>
-                ) : (
-                  pagedCards.map(c => (
-                    <tr key={c.app.id} className="tk-table-row" onClick={() => onOpenEmail(c.openEmailId)}>
-                      <td><b>{c.app.company}</b></td>
-                      <td style={{ color: 'var(--tk-muted)' }}>{c.app.role || '—'}</td>
-                      <td><span className={`tk-stage-badge c-${c.lane}`}>{c.lane}</span></td>
-                      <td><span className={`tk-chip ${c.chip.kind}`}>{c.chip.text}</span></td>
-                      <td>
-                        <span className="tk-dots" aria-label="Stages reached">
-                          {(['applied', 'assessment', 'interview', 'offer'] as Lane[]).map(k => (
-                            <i key={k} className={c.reached.has(k) ? (k === 'offer' ? 'o' : 'd') : ''} />
-                          ))}
-                          {c.lane === 'rejected' && <i className="x" />}
-                        </span>
-                      </td>
-                      <td style={{ color: 'var(--tk-muted)', fontSize: 12 }}>{c.lastEmail}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="tk-table-pagination">
-            <span>
-              Showing {filteredTableCards.length > 0 ? tablePage * TABLE_PAGE_SIZE + 1 : 0}–
-              {Math.min((tablePage + 1) * TABLE_PAGE_SIZE, filteredTableCards.length)} of {filteredTableCards.length}
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="tk-page-btn"
-                disabled={tablePage === 0}
-                onClick={() => setTablePage(p => Math.max(0, p - 1))}
-              >
-                ← Previous
-              </button>
-              <button
-                className="tk-page-btn"
-                disabled={tablePage >= totalPages - 1}
-                onClick={() => setTablePage(p => p + 1)}
-              >
-                Next →
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ApplicationTable
+        cards={pagedCards}
+        totalFilteredCount={filteredTableCards.length}
+        allCardsCount={allCards.length}
+        lanes={board.lanes}
+        activeStage={tableStage}
+        onSelectStage={handleSelectStage}
+        searchQuery={tableSearch}
+        onSearchChange={handleSearchChange}
+        searchInputRef={searchInputRef}
+        selectedRowIndex={safeRowIndex}
+        onSelectRow={index => setSelectedRowIndex(index)}
+        onInspectCard={(_card, index) => {
+          setSelectedRowIndex(index);
+          setShowTimeline(false);
+          setIsDrawerOpen(true);
+        }}
+        page={safePage}
+        pageSize={TABLE_PAGE_SIZE}
+        totalPages={totalPages}
+        onNextPage={() => {
+          if (safePage < totalPages - 1) {
+            setTablePage(safePage + 1);
+            setSelectedRowIndex(0);
+          }
+        }}
+        onPrevPage={() => {
+          if (safePage > 0) {
+            setTablePage(safePage - 1);
+            setSelectedRowIndex(0);
+          }
+        }}
+        focusName={focusName}
+      />
 
       {board.unsure.length > 0 && (
-        <details className="tk-card tk-unsure">
+        <details className="bp-section-card tk-card tk-unsure">
           <summary>
             <span>Not sure about {board.unsure.length} email{board.unsure.length === 1 ? '' : 's'}</span>
             <small>Click to see them. Probably not job emails; open one if the sender looks familiar.</small>
           </summary>
           <div className="tk-unsure-list">
             {board.unsure.map(u => (
-              <button key={u.emailId} onClick={() => onOpenEmail(u.emailId)}>
-                <b>{u.company}</b><span>{u.subject}</span><small>{u.date}</small>
+              <button key={u.emailId} type="button" onClick={() => onOpenEmail(u.emailId)}>
+                <b>{u.company}</b><span>{u.subject}</span><small className="tabular num">{u.date}</small>
               </button>
             ))}
           </div>
@@ -437,15 +437,15 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
       )}
 
       {showTimeline && (
-        <div className="tk-drawer-backdrop" onClick={() => setShowTimeline(false)}>
+        <div className="bp-drawer-backdrop tk-drawer-backdrop" onClick={() => setShowTimeline(false)}>
           <aside
-            className="tk-timeline-drawer"
+            className="bp-drawer tk-timeline-drawer"
             role="dialog"
             aria-modal="true"
             aria-label="Activity timeline"
             onClick={e => e.stopPropagation()}
           >
-            <div className="tk-drawer-head">
+            <div className="bp-drawer-header tk-drawer-head">
               <div className="tk-drawer-title-group">
                 <div className="tk-drawer-badge">
                   <Icon name="bar_chart" size={16} />
@@ -455,7 +455,8 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
                 <span className="tk-drawer-sub">Weekly activity breakdown over the last 12 weeks</span>
               </div>
               <button
-                className="tk-drawer-close"
+                type="button"
+                className="bp-drawer-close tk-drawer-close"
                 onClick={() => setShowTimeline(false)}
                 aria-label="Close timeline"
                 title="Close (Esc)"
@@ -465,11 +466,12 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
             </div>
 
             <div className="tk-drawer-tabs">
-              <div className="tk-tabs" role="group" aria-label="Chart category">
+              <div className="bp-btn-group tk-tabs" role="group" aria-label="Chart category">
                 {(Object.keys(CHARTS) as Chart[]).map(k => (
                   <button
                     key={k}
-                    className={chart === k ? 'on' : ''}
+                    type="button"
+                    className={chart === k ? 'is-active on' : ''}
                     onClick={() => setChart(k)}
                   >
                     {CHARTS[k].tab}
@@ -487,35 +489,50 @@ export const TrackerDashboard: React.FC<Props> = ({ applications, now, onOpenEma
                     role="img"
                     aria-label={`Week of ${board.weekly.weeks[i]}: ${v}`}
                   >
-                    <em>{v || ''}</em>
+                    <em className="tabular num">{v || ''}</em>
                     <i style={{ height: v ? `${Math.round((v / max) * 70)}%` : '2%' }} />
                     <small>{i % 2 === 1 ? board.weekly.weeks[i] : ''}</small>
                   </div>
                 ))}
               </div>
-              <div className="tk-note">Per week, last 12 weeks. This week is in lime.</div>
+              <div className="tk-note">Per week, last 12 weeks. This week is highlighted in primary.</div>
             </div>
 
             <div className="tk-drawer-stats">
               <div className="tk-drawer-stat-item">
                 <span className="label">12-Week Total</span>
-                <span className="val">{totalCount}</span>
+                <span className="val tabular num">{totalCount}</span>
                 <small>{CHARTS[chart].tab.toLowerCase()}</small>
               </div>
               <div className="tk-drawer-stat-item">
                 <span className="label">Peak Week</span>
-                <span className="val">{peakCount}</span>
+                <span className="val tabular num">{peakCount}</span>
                 <small>{peakWeek ? `Week of ${peakWeek}` : 'None'}</small>
               </div>
               <div className="tk-drawer-stat-item">
                 <span className="label">Weekly Avg</span>
-                <span className="val">{avgCount}</span>
+                <span className="val tabular num">{avgCount}</span>
                 <small>per week</small>
               </div>
             </div>
           </aside>
         </div>
       )}
+
+      <ApplicationDetailDrawer
+        card={selectedCard}
+        isOpen={isDrawerOpen && selectedCard !== null}
+        onClose={() => setIsDrawerOpen(false)}
+        onOpenEmailExternal={onOpenEmail}
+        onSetStatus={handleSetStatus}
+        onResetStatus={handleResetStatus}
+        hasOverride={Boolean(selectedCard && statusOverrides[selectedCard.app.id])}
+      />
+
+      <KeyboardShortcutsDialog
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
     </section>
   );
 };
