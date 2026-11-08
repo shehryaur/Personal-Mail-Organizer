@@ -1,113 +1,81 @@
-/* ==========================================================================
-   PALANTIR BLUEPRINT DESIGN SYSTEM - TRACKER STYLESHEET
-   Scoped under .bp-dashboard, .bp-drawer, .bp-dialog, and legacy .tk
-   ========================================================================== */
+/* Job Tracker dashboard - Warm, human-first, responsive design matching prototype/job-tracker.html. Scoped under .tk */
 
-/* --------------------------------------------------------------------------
-   1. Scoped Design Tokens & CSS Custom Properties
-   -------------------------------------------------------------------------- */
+:root,
+.tk,
 .bp-dashboard,
 .bp-drawer,
 .bp-dialog,
 .bp-drawer-backdrop,
-.bp-dialog-backdrop,
-.tk {
-  /* Font Stacks */
-  --bp-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --bp-font-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+.bp-dialog-backdrop {
+  /* Warm Theme Design Tokens */
+  --tk-surface: #ffffff;
+  --tk-panel: #ecece8;
+  --tk-lane: #f4f4f1;
+  --tk-ink: #1b1b1b;
+  --tk-muted: #66665f;
+  --tk-line: #e9e9e4;
+  --tk-lime: #d4f24a;
+  --tk-lime-ink: #2b3300;
+  --tk-sky: #dce9f7;
+  --tk-sky-ink: #1d3f66;
+  --tk-amber-bg: #fff0d2;
+  --tk-amber-ink: #6e4500;
+  --tk-red-bg: #fbe4e1;
+  --tk-red-ink: #8a2b1f;
+  --tk-red: #d93025;
+  --tk-green: #188038;
+  --font: "Manrope", "Segoe UI", system-ui, sans-serif;
 
-  /* Blueprint Core Grays (Light Theme) */
-  --bp-black: #111418;
-  --bp-dark-gray-1: #1c2127;
-  --bp-dark-gray-2: #252a31;
-  --bp-dark-gray-3: #2f343c;
-  --bp-dark-gray-4: #383e47;
-  --bp-dark-gray-5: #404854;
+  /* Aliases for Blueprint interoperability */
+  --bp-font-family: var(--font);
+  --bp-font-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  --bp-surface-bg: var(--tk-surface);
+  --bp-panel-bg: var(--tk-panel);
+  --bp-white: var(--tk-surface);
+  --bp-text-dark: var(--tk-ink);
+  --bp-text-muted: var(--tk-muted);
+  --bp-text-disabled: #9e9e97;
+  --bp-heading-color: var(--tk-ink);
+  --bp-border-color: var(--tk-line);
+  --bp-border-muted: #e2e2dd;
+  --bp-divider: #e2e2dd;
+  --bp-table-hover-bg: #f8f8f6;
+  --bp-table-selected-bg: #f2f5e8;
+  --bp-light-gray-3: #e6e6e1;
 
-  --bp-gray-1: #5f6b7c;
-  --bp-gray-2: #738091;
-  --bp-gray-3: #8f99a8;
-  --bp-gray-4: #abb3bf;
-  --bp-gray-5: #c5cbd3;
+  --bp-intent-primary: var(--tk-ink);
+  --bp-intent-primary-hover: #333333;
+  --bp-intent-primary-active: #000000;
+  --bp-intent-primary-bg: var(--tk-lane);
+  --bp-intent-primary-text: var(--tk-ink);
+  --bp-intent-primary-border: var(--tk-ink);
 
-  --bp-light-gray-1: #d3d8de; /* Classic Blueprint border color */
-  --bp-light-gray-2: #dce0e5;
-  --bp-light-gray-3: #e5e8eb;
-  --bp-light-gray-4: #edeff2;
-  --bp-light-gray-5: #f6f7f9; /* Blueprint light page background */
-  --bp-white: #ffffff;
+  --bp-intent-success: var(--tk-green);
+  --bp-intent-success-hover: #136a2e;
+  --bp-intent-success-active: #0e4f22;
+  --bp-intent-success-bg: #eaf5ec;
+  --bp-intent-success-text: #136a2e;
+  --bp-intent-success-border: #a5d6a7;
 
-  /* Blueprint Neutral Functional Aliases */
-  --bp-text-dark: #182026;
-  --bp-text-muted: #5c7080;
-  --bp-text-disabled: #8a9ba8;
-  --bp-heading-color: #182026;
-  --bp-border-color: #d3d8de;
-  --bp-border-muted: #e5e8eb;
-  --bp-divider: rgba(17, 20, 24, 0.15);
-  --bp-surface-bg: #ffffff;
-  --bp-panel-bg: #f5f8fa;
-  --bp-table-hover-bg: #ebf1f5;
-  --bp-table-selected-bg: #ebf1f5;
-  --bp-table-striped-bg: #fafbfd;
+  --bp-intent-warning: #b06000;
+  --bp-intent-warning-hover: #945100;
+  --bp-intent-warning-active: #784200;
+  --bp-intent-warning-bg: var(--tk-amber-bg);
+  --bp-intent-warning-text: var(--tk-amber-ink);
+  --bp-intent-warning-border: #fed391;
 
-  /* Backward Compatibility Aliases for Legacy .tk variables */
-  --tk-surface: var(--bp-surface-bg);
-  --tk-panel: var(--bp-panel-bg);
-  --tk-lane: #f0f2f5;
-  --tk-ink: var(--bp-text-dark);
-  --tk-muted: var(--bp-text-muted);
-  --tk-line: var(--bp-border-color);
-  --tk-lime: var(--bp-intent-success-bg);
-  --tk-lime-ink: var(--bp-intent-success-text);
-  --tk-sky: var(--bp-intent-primary-bg);
-  --tk-sky-ink: var(--bp-intent-primary-text);
-  --tk-amber-bg: var(--bp-intent-warning-bg);
-  --tk-amber-ink: var(--bp-intent-warning-text);
-  --tk-red-bg: var(--bp-intent-danger-bg);
-  --tk-red-ink: var(--bp-intent-danger-text);
-  --tk-red: var(--bp-intent-danger);
-  --tk-green: var(--bp-intent-success);
+  --bp-intent-danger: var(--tk-red);
+  --bp-intent-danger-hover: #b5281e;
+  --bp-intent-danger-active: #962118;
+  --bp-intent-danger-bg: var(--tk-red-bg);
+  --bp-intent-danger-text: var(--tk-red-ink);
+  --bp-intent-danger-border: #f8b4ad;
 
-  /* Semantic Intents */
-  /* Primary (Cobalt Blue) */
-  --bp-intent-primary: #106ba3;
-  --bp-intent-primary-hover: #0e5a8a;
-  --bp-intent-primary-active: #0c4b73;
-  --bp-intent-primary-bg: #ebf1f5;
-  --bp-intent-primary-text: #106ba3;
-  --bp-intent-primary-border: #2b95d6;
-
-  /* Success (Forest Green) */
-  --bp-intent-success: #0d8050;
-  --bp-intent-success-hover: #0a6640;
-  --bp-intent-success-active: #085132;
-  --bp-intent-success-bg: #edf8f2;
-  --bp-intent-success-text: #0d8050;
-  --bp-intent-success-border: #32a467;
-
-  /* Warning (Amber / Ochre Orange) */
-  --bp-intent-warning: #bf7300;
-  --bp-intent-warning-hover: #a66321;
-  --bp-intent-warning-active: #8c521a;
-  --bp-intent-warning-bg: #fdf5ea;
-  --bp-intent-warning-text: #bf7300;
-  --bp-intent-warning-border: #ec9a3c;
-
-  /* Danger (Crimson Red) */
-  --bp-intent-danger: #c23030;
-  --bp-intent-danger-hover: #a82222;
-  --bp-intent-danger-active: #8f1b1b;
-  --bp-intent-danger-bg: #fdf2f2;
-  --bp-intent-danger-text: #c23030;
-  --bp-intent-danger-border: #e76a6e;
-
-  /* Blueprint Elevation Shadows (Levels 0–4 with omnipresent 1px outline ring) */
-  --bp-elevation-0: 0 0 0 1px rgba(17, 20, 24, 0.15);
-  --bp-elevation-1: 0 0 0 1px rgba(17, 20, 24, 0.1), 0 1px 1px rgba(17, 20, 24, 0.2);
-  --bp-elevation-2: 0 0 0 1px rgba(17, 20, 24, 0.1), 0 1px 1px rgba(17, 20, 24, 0.2), 0 2px 6px rgba(17, 20, 24, 0.2);
-  --bp-elevation-3: 0 0 0 1px rgba(17, 20, 24, 0.1), 0 2px 4px rgba(17, 20, 24, 0.2), 0 8px 24px rgba(17, 20, 24, 0.2);
-  --bp-elevation-4: 0 0 0 1px rgba(17, 20, 24, 0.1), 0 4px 8px rgba(17, 20, 24, 0.2), 0 18px 46px 6px rgba(17, 20, 24, 0.2);
+  --bp-elevation-0: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --bp-elevation-1: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --bp-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --bp-elevation-3: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --bp-elevation-4: -8px 0 32px rgba(0, 0, 0, 0.14);
 }
 
 .bp-elevation-0 { box-shadow: var(--bp-elevation-0); }
@@ -116,44 +84,20 @@
 .bp-elevation-3 { box-shadow: var(--bp-elevation-3); }
 .bp-elevation-4 { box-shadow: var(--bp-elevation-4); }
 
-.bp-dashboard,
-.tk {
-  /* Dashboard Surface Container */
-  font-family: var(--bp-font-family);
-  font-size: 13px;
-  line-height: 17px;
-  color: var(--bp-text-dark);
-  background: var(--bp-panel-bg);
-  border: 1px solid var(--bp-border-color);
-  border-radius: 4px; /* Crisp rectangular radius replacing 28px */
-  padding: 16px 20px; /* High information density replacing 28px */
+/* Root Container */
+.tk,
+.bp-dashboard {
+  font-family: var(--font);
+  color: var(--tk-ink);
+  background: var(--tk-panel);
+  border-radius: 28px;
+  padding: 28px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  border: none;
 }
 
-/* --------------------------------------------------------------------------
-   2. Typography Ramp & Tabular Numerals
-   -------------------------------------------------------------------------- */
-.bp-dashboard .num,
-.bp-dashboard .tabular,
-.tk .num,
-.bp-tabular-nums {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
-.bp-dashboard h1,
-.bp-dashboard h2,
-.bp-dashboard h3,
-.tk h1,
-.tk h2 {
-  margin: 0;
-  font-weight: 600;
-  color: var(--bp-text-dark);
-}
-
-.bp-dashboard :where(button),
 .tk :where(button) {
   font: inherit;
   color: inherit;
@@ -164,974 +108,734 @@
   text-align: left;
 }
 
-.bp-dashboard button:focus-visible,
 .tk button:focus-visible {
-  outline: 2px solid #2b95d6;
-  outline-offset: 1px;
+  outline: 2px solid var(--tk-ink);
+  outline-offset: 2px;
 }
 
-/* --------------------------------------------------------------------------
-   3. Header Bar & Navigation Chrome
-   -------------------------------------------------------------------------- */
-.bp-navbar-compact,
-.tk-head {
+.tk .num,
+.bp-tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+}
+
+.tk h1, .tk h2, .tk h3,
+.bp-dashboard h1, .bp-dashboard h2, .bp-dashboard h3 {
+  margin: 0;
+}
+
+/* Header & Presets */
+.tk-head,
+.bp-navbar-compact {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--bp-border-color);
-  margin-bottom: 0;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
-.bp-navbar-title-group,
-.tk-head .grow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1 1 240px;
-}
-
-.bp-navbar-title-group h1,
 .tk-head h1 {
-  font-size: 16px;
+  font-size: 34px;
   font-weight: 600;
-  line-height: 20px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.bp-navbar-divider {
-  width: 1px;
-  height: 18px;
-  background-color: var(--bp-border-color);
+.tk-head .sub,
+.bp-navbar-sub {
+  font-size: 22px;
+  color: var(--tk-muted);
+  font-weight: 300;
 }
 
-.bp-navbar-sub,
-.tk-head .sub {
+.tk-head .grow,
+.bp-navbar-title-group {
+  flex: 1 1 260px;
+}
+
+.tk-updated {
   font-size: 13px;
-  font-weight: 400;
-  line-height: 17px;
-  color: var(--bp-text-muted);
+  color: var(--tk-muted);
 }
 
-.bp-navbar-actions,
-.tk-range-controls {
+.tk-seg,
+.bp-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 22px;
+  background: var(--tk-surface);
+}
+
+.tk-seg button {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all .12s ease;
+}
+
+.tk-seg button:hover {
+  background: var(--tk-lane);
+}
+
+.tk-seg button.on,
+.tk-seg button.is-active {
+  background: var(--tk-ink);
+  color: #fff;
+}
+
+/* Date Range Controls */
+.tk-range-controls,
+.bp-navbar-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 
-.tk-updated {
-  font-size: 11px;
-  color: var(--bp-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* --------------------------------------------------------------------------
-   4. Buttons & Segmented Button Groups (.bp-btn, .bp-btn-group, .tk-seg)
-   -------------------------------------------------------------------------- */
-.bp-btn-group,
-.tk-seg {
-  display: inline-flex;
-  flex-wrap: nowrap;
-  border-radius: 3px;
-  box-shadow: var(--bp-elevation-0);
-  background: var(--bp-white);
-  padding: 0;
-  overflow: hidden;
-}
-
-.bp-btn-group button,
-.tk-seg button {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--bp-text-dark);
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--bp-border-color);
-  border-radius: 0;
-  cursor: pointer;
-  transition: background 0.1s ease;
-  white-space: nowrap;
-}
-
-.bp-btn-group button:last-child,
-.tk-seg button:last-child {
-  border-right: 0;
-}
-
-.bp-btn-group button:hover,
-.tk-seg button:hover {
-  background: #f0f2f5;
-}
-
-.bp-btn-group button.is-active,
-.bp-btn-group button.on,
-.tk-seg button.on {
-  background: #2f343c;
-  color: var(--bp-white);
-  font-weight: 600;
-}
-
-/* Standalone Button Primitives */
-.bp-btn {
-  display: inline-flex;
+.tk-date-range,
+.bp-date-range {
+  display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  background: #fff;
+  padding: 4px 14px;
+  border-radius: 22px;
+  height: 44px;
+  border: 1.5px solid var(--tk-ink);
+  animation: tkFadeIn .15s ease-out;
+}
+
+.tk-date-label,
+.bp-date-label {
+  display: flex;
+  align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 10px;
   font-size: 12px;
-  font-weight: 500;
-  border-radius: 3px;
-  border: 0;
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.2), inset 0 -1px 0 rgba(17, 20, 24, 0.1);
-  background: #ffffff linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
-  color: var(--bp-text-dark);
+  font-weight: 700;
+  color: var(--tk-muted);
   cursor: pointer;
-  transition: all 0.1s ease;
+}
+
+.tk-date-tag {
   user-select: none;
 }
 
-.bp-btn:hover {
-  background-color: #f5f8fa;
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.3), inset 0 -1px 0 rgba(17, 20, 24, 0.15);
-}
-
-.bp-btn:active {
-  background-color: #e5e8eb;
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.4), inset 0 1px 2px rgba(17, 20, 24, 0.2);
-}
-
-.bp-btn.bp-btn-primary,
-.tk-cta {
+.tk-date-input,
+.bp-date-input {
   height: 28px;
-  border-radius: 3px;
-  background-color: var(--bp-intent-primary);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0));
-  color: var(--bp-white);
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.3), inset 0 -1px 0 rgba(17, 20, 24, 0.2);
+  padding: 0 8px;
+  border-radius: 12px;
+  border: 1px solid #d9d9d3;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--tk-ink);
+  background: var(--tk-lane);
+  outline: none;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.tk-date-input:focus,
+.tk-date-input:hover,
+.bp-date-input:focus,
+.bp-date-input:hover {
+  border-color: var(--tk-ink);
+  background: #fff;
+}
+
+.tk-date-sep,
+.bp-date-sep {
   font-size: 12px;
   font-weight: 600;
-  padding: 0 10px;
-  display: inline-flex;
+  color: var(--tk-muted);
+  user-select: none;
+}
+
+/* Header Buttons */
+.tk-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: var(--tk-surface);
+  display: grid;
+  place-items: center;
+  color: #444;
+  transition: background .12s ease;
+}
+
+.tk-icon-btn:hover {
+  background: var(--tk-lane);
+}
+
+.tk-cta {
+  height: 44px;
+  border-radius: 22px;
+  background: var(--tk-ink);
+  color: #fff;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  cursor: pointer;
+  gap: 12px;
+  padding: 0 6px 0 18px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: opacity .12s ease;
 }
 
-.bp-btn.bp-btn-primary:hover,
-.tk-cta:hover:not(:disabled) {
-  background-color: var(--bp-intent-primary-hover);
+.tk-cta > span:last-child {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--tk-ink);
+  display: grid;
+  place-items: center;
 }
 
-.bp-btn.bp-btn-minimal {
-  background: transparent;
-  box-shadow: none;
-}
-
-.bp-btn.bp-btn-minimal:hover {
-  background: rgba(17, 20, 24, 0.06);
-}
-
-.bp-btn:disabled,
 .tk-cta:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.1);
+  cursor: default;
+  opacity: .85;
 }
 
-/* Timeline & Settings Icon Buttons */
+/* Timeline Button in header */
 .tk-timeline-btn {
-  height: 28px;
-  border-radius: 3px;
-  background: var(--bp-white);
-  color: var(--bp-text-dark);
-  display: inline-flex;
+  height: 44px;
+  border-radius: 22px;
+  background: var(--tk-surface);
+  color: var(--tk-ink);
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 500;
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.2), inset 0 -1px 0 rgba(17, 20, 24, 0.1);
-  transition: all 0.1s ease;
+  gap: 8px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid transparent;
+  transition: all .15s ease;
   cursor: pointer;
 }
 
 .tk-timeline-btn:hover {
-  background: #f5f8fa;
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.3);
+  background: var(--tk-lane);
+  border-color: #d9d9d3;
 }
 
-.tk-timeline-btn.on {
-  background: #2f343c;
-  color: var(--bp-white);
+.tk-timeline-btn.on,
+.tk-timeline-btn.is-active {
+  background: var(--tk-ink);
+  color: #fff;
 }
 
-.tk-icon-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 3px;
-  background: var(--bp-white);
-  box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.2), inset 0 -1px 0 rgba(17, 20, 24, 0.1);
-  display: grid;
-  place-items: center;
-  color: var(--bp-text-muted);
-  cursor: pointer;
+.tk-timeline-btn.on .tk-keycap,
+.tk-timeline-btn.is-active .tk-keycap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-color: transparent;
 }
 
-.tk-icon-btn:hover {
-  background: #f5f8fa;
-  color: var(--bp-text-dark);
-}
-
-/* --------------------------------------------------------------------------
-   5. Date Range Controls
-   -------------------------------------------------------------------------- */
-.bp-date-range,
-.tk-date-range {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bp-white);
-  padding: 0 8px;
-  border-radius: 3px;
-  height: 28px;
-  box-shadow: var(--bp-elevation-0);
-  border: 0;
-  animation: bpFadeIn 0.15s ease-out;
-}
-
-.bp-date-label,
-.tk-date-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--bp-text-muted);
-  text-transform: uppercase;
-}
-
-.bp-date-input,
-.tk-date-input {
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 2px;
-  border: 1px solid var(--bp-border-muted);
-  font-size: 11px;
-  font-family: var(--bp-font-family);
-  font-weight: 500;
-  color: var(--bp-text-dark);
-  background: #f8f9fa;
-  outline: none;
-  font-variant-numeric: tabular-nums;
-  transition: all 0.12s ease;
-}
-
-.bp-date-input:focus,
-.tk-date-input:focus {
-  border-color: #2b95d6;
-  background: var(--bp-white);
-  box-shadow: 0 0 0 1px #2b95d6;
-}
-
-.bp-date-sep,
-.tk-date-sep {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--bp-text-muted);
-  user-select: none;
-}
-
-/* --------------------------------------------------------------------------
-   6. Stage Summary Metric Cards (.bp-metric-card, .tk-count)
-   -------------------------------------------------------------------------- */
-.bp-metrics-grid,
-.tk-counts {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.bp-metric-card,
-.tk-count {
-  background: var(--bp-white);
-  box-shadow: var(--bp-elevation-1);
-  border-radius: 3px;
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  cursor: pointer;
-  border: 0;
-  border-left: 3px solid transparent;
-  width: 100%;
-  transition: all 0.12s ease;
-  user-select: none;
-}
-
-.bp-metric-card:hover,
-.tk-count:hover {
-  box-shadow: var(--bp-elevation-2);
-}
-
-.bp-metric-card.is-active,
-.bp-metric-card.on,
-.tk-count.on {
-  box-shadow: 0 0 0 1px #106ba3, 0 1px 1px rgba(17, 20, 24, 0.2);
-}
-
-/* Metric Card Intent Borders */
-.bp-metric-card.intent-applied,
-.tk-count:nth-child(1) { border-left-color: #8f99a8; }
-
-.bp-metric-card.intent-assessment,
-.tk-count:nth-child(2) { border-left-color: var(--bp-intent-warning); }
-
-.bp-metric-card.intent-interview,
-.tk-count:nth-child(3) { border-left-color: var(--bp-intent-primary); }
-
-.bp-metric-card.intent-offer,
-.tk-count:nth-child(4) { border-left-color: var(--bp-intent-success); }
-
-.bp-metric-card.intent-rejected,
-.tk-count:nth-child(5) { border-left-color: var(--bp-intent-danger); }
-
-.bp-metric-header,
-.tk-count .k {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.tk-count .k i {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  display: inline-block;
-}
-
-.bp-metric-label,
-.tk-count .k {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--bp-text-muted);
-}
-
-.bp-metric-value,
-.tk-count .num {
-  font-size: 26px; /* High-density metric replacing 52px */
-  font-weight: 600;
-  line-height: 1.1;
-  color: var(--bp-text-dark);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
-.bp-metric-note,
-.tk-count small {
-  font-size: 11px;
-  color: var(--bp-text-muted);
-  min-height: 14px;
-}
-
-.tk-count.hot {
-  background: var(--bp-intent-success-bg);
-}
-.tk-count.hot small {
-  color: var(--bp-intent-success-text);
-}
-
-/* Legacy Stage Dot Classes */
-.tk .c-applied { background: #8f99a8; }
-.tk .c-assessment { background: var(--bp-intent-warning); }
-.tk .c-interview { background: var(--bp-intent-primary); }
-.tk .c-offer { background: var(--bp-intent-success); }
-.tk .c-rejected { background: var(--bp-intent-danger); }
-.tk .c-review { background: #8f99a8; }
-
-/* --------------------------------------------------------------------------
-   7. Section Card & Table Toolbar
-   -------------------------------------------------------------------------- */
-.bp-section-card,
-.tk-card {
-  background: var(--bp-white);
-  box-shadow: var(--bp-elevation-0);
-  border-radius: 3px;
-  padding: 14px 16px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.bp-card-head,
-.tk-card-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 0;
-}
-
-.bp-card-head h2,
-.tk-card-head h2 {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.bp-card-head .aside,
-.tk-card-head .aside {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--bp-text-muted);
-}
-
-.bp-table-toolbar,
-.tk-table-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.bp-table-filters,
-.tk-table-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.bp-table-pill,
-.tk-table-pill {
-  padding: 3px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
-  background: #f0f2f5;
-  color: var(--bp-text-muted);
-  border: 1px solid var(--bp-border-color);
-  cursor: pointer;
-  transition: all 0.1s ease;
-}
-
-.bp-table-pill:hover,
-.tk-table-pill:hover {
-  background: #e5e8eb;
-}
-
-.bp-table-pill.is-active,
-.bp-table-pill.on,
-.tk-table-pill.on {
-  background: #2f343c;
-  color: var(--bp-white);
-  border-color: #2f343c;
-}
-
-.bp-search-input-group {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.bp-search-input,
-.tk-table-search {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-  color: var(--bp-text-dark);
-  background: var(--bp-white);
-  border: 1px solid var(--bp-border-color);
-  border-radius: 3px;
-  outline: none;
-  min-width: 220px;
-  transition: all 0.12s ease;
-}
-
-.bp-search-input:focus,
-.tk-table-search:focus {
-  border-color: #2b95d6;
-  box-shadow: 0 0 0 1px #2b95d6;
-}
-
-.bp-search-input-group .bp-search-input {
-  padding-left: 28px;
-}
-
-.bp-search-input-group .material-symbols-outlined,
-.bp-search-input-group svg {
-  position: absolute;
-  left: 8px;
-  font-size: 16px !important;
-  width: 16px !important;
-  height: 16px !important;
-  color: var(--bp-text-muted, #5c7080);
-  pointer-events: none;
-}
-
-/* --------------------------------------------------------------------------
-   8. Blueprint HTML Data Table (.bp-html-table, .tk-table)
-   -------------------------------------------------------------------------- */
-.bp-table-container,
-.tk-table-container {
-  overflow-x: auto;
-  overflow-y: auto;
-  max-height: 540px;
-  position: relative;
-  border: 1px solid var(--bp-border-color);
-  border-radius: 3px;
-}
-
-.bp-html-table,
-.tk-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  line-height: 16px;
-  text-align: left;
-}
-
-.bp-html-table th,
-.tk-table th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #f5f8fa;
-  color: var(--bp-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--bp-border-color);
-  border-right: 1px solid var(--bp-border-muted);
-  box-shadow: inset 0 -1px 0 var(--bp-border-color);
-  white-space: nowrap;
-}
-
-.bp-html-table th:last-child,
-.tk-table th:last-child {
-  border-right: 0;
-}
-
-.bp-html-table td,
-.tk-table td {
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--bp-border-muted);
-  border-right: 1px solid var(--bp-border-muted);
-  color: var(--bp-text-dark);
-  vertical-align: middle;
-}
-
-.bp-html-table td:last-child,
-.tk-table td:last-child {
-  border-right: 0;
-}
-
-.bp-html-table tbody tr:nth-child(even),
-.tk-table tbody tr:nth-child(even) {
-  background-color: var(--bp-white);
-}
-
-.bp-html-table tbody tr:nth-child(odd),
-.tk-table tbody tr:nth-child(odd) {
-  background-color: #fafbfd;
-}
-
-.bp-html-table tbody tr:hover,
-.tk-table-row:hover {
-  background-color: #ebf1f5 !important;
-  cursor: pointer;
-}
-
-/* Row Selection & Focus Indicators */
-.bp-html-table tbody tr.is-selected,
-.tk-table-row.is-selected {
-  background-color: #ebf1f5 !important;
-  position: relative;
-}
-
-.bp-html-table tbody tr.is-selected td:first-child,
-.tk-table-row.is-selected td:first-child {
-  box-shadow: inset 3px 0 0 var(--bp-intent-primary);
-}
-
-.bp-html-table tbody tr.has-focus,
-.tk-table-row.has-focus,
-.tk-table-row:focus-visible {
-  outline: 2px solid #2b95d6;
-  outline-offset: -2px;
-}
-
-.bp-table-pagination,
-.tk-table-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 10px;
-  font-size: 12px;
-  color: var(--bp-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.bp-page-btn,
-.tk-page-btn {
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 3px;
-  background: var(--bp-white);
-  box-shadow: var(--bp-elevation-0);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--bp-text-dark);
-  cursor: pointer;
-  transition: all 0.1s ease;
-}
-
-.bp-page-btn:hover:not(:disabled),
-.tk-page-btn:hover:not(:disabled) {
-  background: #f0f2f5;
-}
-
-.bp-page-btn:disabled,
-.tk-page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* --------------------------------------------------------------------------
-   9. Badges, Tags & Keycaps (.bp-tag, .bp-keycap, kbd, .tk-stage-badge)
-   -------------------------------------------------------------------------- */
-.bp-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 20px;
-  padding: 0 6px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 3px;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.bp-tag.bp-round,
-.bp-tag-round,
-.tk-stage-badge {
-  border-radius: 10px;
-  padding: 2px 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-/* Intent Colors for Tags */
-.bp-tag.intent-primary,
-.bp-tag.bp-intent-primary,
-.tk-stage-badge.c-interview {
-  background-color: var(--bp-intent-primary-bg);
-  color: var(--bp-intent-primary-text);
-  border: 1px solid rgba(16, 107, 163, 0.25);
-}
-
-.bp-tag.intent-success,
-.bp-tag.bp-intent-success,
-.tk-stage-badge.c-offer {
-  background-color: var(--bp-intent-success-bg);
-  color: var(--bp-intent-success-text);
-  border: 1px solid rgba(13, 128, 80, 0.25);
-}
-
-.bp-tag.intent-warning,
-.bp-tag.bp-intent-warning,
-.tk-stage-badge.c-assessment {
-  background-color: var(--bp-intent-warning-bg);
-  color: var(--bp-intent-warning-text);
-  border: 1px solid rgba(191, 115, 0, 0.25);
-}
-
-.bp-tag.intent-danger,
-.bp-tag.bp-intent-danger,
-.tk-stage-badge.c-rejected {
-  background-color: var(--bp-intent-danger-bg);
-  color: var(--bp-intent-danger-text);
-  border: 1px solid rgba(194, 48, 48, 0.25);
-}
-
-.bp-tag.intent-neutral,
-.bp-tag.bp-intent-none,
-.tk-stage-badge.c-applied,
-.tk-stage-badge.c-review {
-  background-color: #f0f2f5;
-  color: var(--bp-text-muted);
-  border: 1px solid var(--bp-border-color);
-}
-
-/* Status Chips (.tk-chip) */
-.tk-chip {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 20px;
-  line-height: 1;
-  padding: 0 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.tk-chip.due,
-.tk-chip.warn {
-  background-color: var(--bp-intent-warning-bg);
-  color: var(--bp-intent-warning-text);
-  border: 1px solid rgba(191, 115, 0, 0.25);
-}
-
-.tk-chip.info {
-  background-color: var(--bp-intent-primary-bg);
-  color: var(--bp-intent-primary-text);
-  border: 1px solid rgba(16, 107, 163, 0.25);
-}
-
-.tk-chip.closed {
-  background-color: var(--bp-intent-danger-bg);
-  color: var(--bp-intent-danger-text);
-  border: 1px solid rgba(194, 48, 48, 0.25);
-}
-
-.tk-chip.wait {
-  background-color: #f0f2f5;
-  color: var(--bp-text-muted);
-  border: 1px solid var(--bp-border-color);
-}
-
-/* Pipeline Step Progress Dots */
-.tk-dots {
-  display: inline-flex;
-  gap: 3px;
-  align-items: center;
-}
-
-.tk-dots i {
-  width: 12px;
-  height: 4px;
-  border-radius: 1px;
-  background: #e5e8eb;
-  display: inline-block;
-}
-
-.tk-dots i.d {
-  background: #2f343c;
-}
-
-.tk-dots i.o {
-  background: var(--bp-intent-success);
-}
-
-.tk-dots i.x {
-  background: var(--bp-intent-danger);
-}
-
-/* Keyboard Keycap Badges */
-.bp-dashboard kbd,
-.bp-drawer kbd,
-.bp-dialog kbd,
-.tk kbd,
+/* Keycaps */
+.tk-keycap,
 .bp-keycap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
+  min-width: 20px;
+  height: 20px;
   padding: 0 5px;
-  font-family: var(--bp-font-mono);
-  font-size: 10px;
+  border-radius: 6px;
+  background: var(--tk-lane);
+  border: 1px solid #d9d9d3;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tk-ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Cards */
+.tk-card,
+.bp-section-card {
+  background: var(--tk-surface);
+  border-radius: 24px;
+  padding: 20px 22px;
+  min-width: 0;
+  border: none;
+}
+
+.tk-card-head,
+.bp-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.tk-card-head h2,
+.bp-card-head h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.tk-card-head .aside,
+.bp-card-head .aside {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--tk-muted);
+}
+
+/* Stage Metrics Bar */
+.tk-counts,
+.bp-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tk-count,
+.bp-metric-card {
+  background: var(--tk-surface);
+  border-radius: 22px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 2px solid transparent;
+  width: 100%;
+  transition: all .12s ease;
+}
+
+.tk-count:hover,
+.bp-metric-card:hover {
+  border-color: #d9d9d3;
+}
+
+.tk-count.on,
+.tk-count.is-active,
+.bp-metric-card.on,
+.bp-metric-card.is-active {
+  border-color: var(--tk-ink);
+}
+
+.tk-count .k,
+.tk-count-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--bp-text-dark);
-  background: var(--bp-white);
-  border: 1px solid #c5cbd3;
-  border-bottom: 2px solid #8f99a8;
-  border-radius: 3px;
-  box-shadow: 0 1px 1px rgba(17, 20, 24, 0.1);
-  line-height: 1;
 }
 
-/* Universal Blueprint Icon Alignment */
-.bp-btn .material-symbols-outlined,
-.bp-btn svg {
-  font-size: 16px !important;
-  width: 16px !important;
-  height: 16px !important;
+.tk-count .k i,
+.tk-count-header i {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
   flex-shrink: 0;
 }
 
-.bp-tag .material-symbols-outlined,
-.bp-tag svg {
-  font-size: 13px !important;
-  width: 13px !important;
-  height: 13px !important;
-  flex-shrink: 0;
+.tk-count .num,
+.bp-metric-value {
+  font-size: 52px;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-weight: 400;
 }
 
-/* --------------------------------------------------------------------------
-   10. Progressive Disclosure: Right-Side Drawers (.bp-drawer, .tk-timeline-drawer)
-   -------------------------------------------------------------------------- */
-.bp-drawer-backdrop,
-.tk-drawer-backdrop {
+.tk-count small,
+.bp-metric-note {
+  font-size: 12px;
+  color: var(--tk-muted);
+  min-height: 16px;
+}
+
+.tk-count.hot,
+.bp-metric-card.hot {
+  background: var(--tk-lime);
+}
+
+.tk-count.hot small,
+.bp-metric-card.hot small {
+  color: var(--tk-lime-ink);
+}
+
+/* Stage Dots */
+.c-applied { background: #a9a9a2; }
+.c-assessment { background: #6f9fd8; }
+.c-interview { background: var(--tk-lime); box-shadow: inset 0 0 0 1.5px #9fbf1f; }
+.c-offer { background: var(--tk-green); }
+.c-rejected { background: var(--tk-red); }
+.c-review { background: #b9a6e8; }
+
+/* Dense Table View */
+.tk-table-controls,
+.bp-table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tk-table-filters,
+.bp-table-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tk-table-pill,
+.bp-table-pill {
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--tk-lane);
+  color: var(--tk-muted);
+  border: 0;
+  transition: all .12s ease;
+}
+
+.tk-table-pill:hover,
+.bp-table-pill:hover {
+  background: #deded8;
+}
+
+.tk-table-pill.on,
+.tk-table-pill.is-active,
+.bp-table-pill.on,
+.bp-table-pill.is-active {
+  background: var(--tk-ink);
+  color: #fff;
+}
+
+.tk-search-wrapper,
+.bp-search-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tk-table-search,
+.bp-search-input {
+  height: 34px;
+  padding: 0 32px 0 14px;
+  border-radius: 17px;
+  border: 1px solid #d9d9d3;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  outline: none;
+  min-width: 240px;
+  transition: border-color .15s ease;
+}
+
+.tk-table-search:focus,
+.bp-search-input:focus {
+  border-color: var(--tk-ink);
+}
+
+.bp-key-hint {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+}
+
+.tk-table-container,
+.bp-table-container {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid #e9e9e4;
+  background: #fff;
+}
+
+.tk-table,
+.bp-html-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.tk-table th,
+.bp-html-table th {
+  background: var(--tk-lane);
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--tk-muted);
+  border-bottom: 1px solid #e2e2dd;
+}
+
+.tk-table td,
+.bp-html-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f0f0eb;
+  vertical-align: middle;
+}
+
+.tk-table-row,
+.bp-table-row {
+  cursor: pointer;
+  transition: background .12s ease;
+}
+
+.tk-table-row:hover,
+.bp-table-row:hover {
+  background: #f8f8f6;
+}
+
+.tk-table-row.selected,
+.tk-table-row.is-selected,
+.bp-table-row.is-selected {
+  background: #f2f5e8;
+  box-shadow: inset 3px 0 0 var(--tk-ink);
+}
+
+.tk-table-row:last-child td,
+.bp-html-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.tk-muted-cell {
+  color: var(--tk-muted);
+}
+
+/* Stage Badges */
+.tk-stage-badge,
+.bp-tag.bp-round {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.tk-stage-badge i {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.tk-stage-badge.applied,
+.intent-neutral,
+.bp-intent-none {
+  background: #ecece8;
+  color: #4a4a45;
+}
+
+.tk-stage-badge.assessment,
+.intent-warning,
+.bp-intent-warning {
+  background: var(--tk-sky);
+  color: var(--tk-sky-ink);
+}
+
+.tk-stage-badge.interview,
+.intent-primary,
+.bp-intent-primary {
+  background: var(--tk-amber-bg);
+  color: var(--tk-amber-ink);
+}
+
+.tk-stage-badge.offer,
+.intent-success,
+.bp-intent-success {
+  background: var(--tk-lime);
+  color: var(--tk-lime-ink);
+}
+
+.tk-stage-badge.rejected,
+.intent-danger,
+.bp-intent-danger {
+  background: var(--tk-red-bg);
+  color: var(--tk-red-ink);
+}
+
+/* Chips */
+.tk-chip,
+.bp-tag {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  line-height: 1.3;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tk-chip.due { background: var(--tk-lime); color: var(--tk-lime-ink); }
+.tk-chip.info { background: var(--tk-sky); color: var(--tk-sky-ink); }
+.tk-chip.warn { background: var(--tk-amber-bg); color: var(--tk-amber-ink); }
+.tk-chip.closed { background: var(--tk-red-bg); color: var(--tk-red-ink); }
+.tk-chip.wait { background: #ecece8; color: #4a4a45; }
+
+/* Progress Dots */
+.tk-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.tk-dots i {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: #e6e6e1;
+}
+
+.tk-dots i.d { background: var(--tk-ink); }
+.tk-dots i.x { background: var(--tk-red); }
+.tk-dots i.o { background: var(--tk-green); }
+
+/* Table Pagination */
+.tk-table-pagination,
+.bp-table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  font-size: 12px;
+  color: var(--tk-muted);
+}
+
+.tk-page-btn,
+.bp-page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 12px;
+  background: var(--tk-lane);
+  font-weight: 600;
+  color: var(--tk-ink);
+  border: none;
+  cursor: pointer;
+  transition: all .12s ease;
+}
+
+.tk-page-btn:hover:not(:disabled),
+.bp-page-btn:hover:not(:disabled) {
+  background: #deded8;
+}
+
+.tk-page-btn:disabled,
+.bp-page-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+/* Timeline Drawer Overlay */
+.tk-drawer-backdrop,
+.bp-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(17, 20, 24, 0.4);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: rgba(27, 27, 27, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   z-index: 1000;
   display: flex;
   justify-content: flex-end;
-  animation: bpFadeIn 0.15s ease-out;
+  animation: tkFadeIn 0.2s ease-out;
 }
 
-.bp-drawer,
-.tk-timeline-drawer {
-  width: min(520px, 95vw);
+.tk-timeline-drawer,
+.tk-detail-drawer,
+.bp-drawer {
+  width: min(580px, 94vw);
   height: 100%;
-  background: var(--bp-white);
-  box-shadow: var(--bp-elevation-4);
-  border-radius: 0; /* Rectangular edge docking flush to viewport */
+  background: var(--tk-surface);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.14);
   display: flex;
   flex-direction: column;
-  padding: 0;
-  overflow: hidden;
-  animation: bpSlideRight 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 28px 24px;
+  gap: 18px;
+  overflow-y: auto;
+  animation: tkSlideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--font);
 }
 
-.bp-drawer.bp-position-right {
-  top: 0;
-  right: 0;
-  bottom: 0;
-  height: 100%;
-  width: min(520px, 95vw);
-  max-width: 100%;
-  box-shadow: var(--bp-elevation-4);
-}
-
-@keyframes bpFadeIn {
+@keyframes tkFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes bpSlideRight {
+@keyframes tkSlideInRight {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
 
-.bp-drawer-header,
-.tk-drawer-head {
-  height: 40px;
-  padding: 0 16px;
+.tk-drawer-head,
+.bp-drawer-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--bp-border-color);
-  background: #f5f8fa;
-  flex-shrink: 0;
-}
-
-.bp-drawer-header h3,
-.tk-drawer-head h2 {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0;
-}
-
-.bp-drawer-close,
-.tk-drawer-close {
-  width: 24px;
-  height: 24px;
-  border-radius: 3px;
-  background: transparent;
-  display: grid;
-  place-items: center;
-  color: var(--bp-text-muted);
-  cursor: pointer;
-  transition: all 0.1s ease;
-}
-
-.bp-drawer-close:hover,
-.tk-drawer-close:hover {
-  background: rgba(17, 20, 24, 0.08);
-  color: var(--bp-text-dark);
-}
-
-.bp-drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.bp-drawer-footer {
-  padding: 10px 16px;
-  border-top: 1px solid var(--bp-border-color);
-  background: #f5f8fa;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-}
-
-/* Timeline Drawer Specific Styles */
-.tk-timeline-drawer {
-  padding: 20px;
-  gap: 14px;
-}
-
-.tk-timeline-drawer .tk-drawer-head {
-  height: auto;
-  min-height: 48px;
-  padding: 0 0 12px 0;
-  background: transparent;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .tk-drawer-title-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .tk-drawer-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--bp-text-muted);
+  font-weight: 700;
+  color: var(--tk-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+}
+
+.tk-drawer-head h2,
+.tk-detail-drawer h2,
+.tk-detail-drawer h3 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .tk-drawer-sub {
-  font-size: 12px;
-  color: var(--bp-text-muted);
+  font-size: 13px;
+  color: var(--tk-muted);
+}
+
+.tk-drawer-close,
+.bp-drawer-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  background: var(--tk-lane);
+  display: grid;
+  place-items: center;
+  color: var(--tk-ink);
+  transition: all .15s ease;
+  flex-shrink: 0;
+  border: none;
+}
+
+.tk-drawer-close:hover,
+.bp-drawer-close:hover {
+  background: #deded8;
 }
 
 .tk-drawer-tabs {
@@ -1139,55 +843,29 @@
   align-items: center;
 }
 
-.tk-tabs {
-  display: inline-flex;
-  border-radius: 3px;
-  box-shadow: var(--bp-elevation-0);
-  background: var(--bp-white);
-  overflow: hidden;
-}
-
-.tk-tabs button {
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--bp-text-dark);
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--bp-border-color);
-  cursor: pointer;
-  transition: background 0.1s ease;
-}
-
-.tk-tabs button:last-child {
-  border-right: 0;
-}
-
-.tk-tabs button:hover {
-  background: #f0f2f5;
-}
-
-.tk-tabs button.on {
-  background: #2f343c;
-  color: var(--bp-white);
-  font-weight: 600;
+.tk-drawer-tabs .tk-tabs {
+  margin-left: 0;
 }
 
 .tk-drawer-chart-card {
-  background: #f5f8fa;
-  border: 1px solid var(--bp-border-color);
-  border-radius: 3px;
-  padding: 16px 14px 12px;
+  background: var(--tk-lane);
+  border-radius: 20px;
+  padding: 20px 18px 16px;
   display: flex;
   flex-direction: column;
 }
 
 .tk-drawer-chart-card .tk-bars {
-  min-height: 200px;
+  min-height: 220px;
+}
+
+.tk-bars {
+  flex: 1;
+  min-height: 210px;
   display: flex;
   align-items: flex-end;
   gap: 8px;
+  padding-top: 8px;
 }
 
 .tk-bar {
@@ -1202,255 +880,280 @@
 
 .tk-bar em {
   font-style: normal;
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  height: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  height: 16px;
 }
 
 .tk-bar i {
   display: block;
   width: 100%;
-  max-width: 24px;
-  border-radius: 2px;
-  background: #d3d8de;
-  min-height: 4px;
+  max-width: 30px;
+  border-radius: 15px;
+  background: #e9e9e4;
+  min-height: 6px;
 }
 
 .tk-bar.now i {
-  background: var(--bp-intent-primary);
+  background: var(--tk-lime);
 }
 
 .tk-bar small {
-  font-size: 10px;
-  color: var(--bp-text-muted);
+  font-size: 11px;
+  color: var(--tk-muted);
   height: 14px;
   white-space: nowrap;
 }
 
 .tk-note {
-  font-size: 11px;
-  color: var(--bp-text-muted);
-  margin-top: 8px;
+  font-size: 12px;
+  color: var(--tk-muted);
+  margin-top: 10px;
 }
 
 .tk-drawer-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 12px;
 }
 
 .tk-drawer-stat-item {
-  background: #f5f8fa;
-  border: 1px solid var(--bp-border-color);
-  border-radius: 3px;
-  padding: 10px 12px;
+  background: var(--tk-lane);
+  border-radius: 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
 .tk-drawer-stat-item .label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--bp-text-muted);
+  letter-spacing: 0.03em;
+  color: var(--tk-muted);
 }
 
 .tk-drawer-stat-item .val {
-  font-size: 20px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .tk-drawer-stat-item small {
-  font-size: 10px;
-  color: var(--bp-text-muted);
+  font-size: 11px;
+  color: var(--tk-muted);
 }
 
-/* --------------------------------------------------------------------------
-   11. Modal Dialogs (.bp-dialog, Keyboard Shortcuts Cheat Sheet)
-   -------------------------------------------------------------------------- */
+/* Detail Drawer Specific Styles */
+.tk-detail-section {
+  background: var(--tk-lane);
+  border-radius: 20px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tk-detail-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tk-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tk-triage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.tk-triage-pill,
+.bp-btn {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 19px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--tk-surface);
+  color: var(--tk-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1.5px solid transparent;
+  transition: all .12s ease;
+  cursor: pointer;
+}
+
+.tk-triage-pill:hover,
+.bp-btn:hover {
+  background: #deded8;
+  border-color: #d9d9d3;
+}
+
+.tk-triage-pill.on,
+.tk-triage-pill.is-active,
+.bp-btn.is-active,
+.bp-btn-primary {
+  background: var(--tk-ink);
+  color: #fff;
+  border-color: var(--tk-ink);
+}
+
+.tk-triage-pill.on .tk-keycap,
+.tk-triage-pill.is-active .tk-keycap,
+.bp-btn.is-active .bp-keycap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-color: transparent;
+}
+
+.tk-email-card,
+.bp-card {
+  background: var(--tk-surface);
+  border-radius: 16px;
+  border: 1px solid #e9e9e4;
+  overflow: hidden;
+  transition: all .12s ease;
+}
+
+.tk-email-header {
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--tk-surface);
+  transition: background .12s ease;
+}
+
+.tk-email-header:hover {
+  background: #f8f8f6;
+}
+
+.tk-email-body {
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  border-top: 1px solid #f0f0eb;
+  background: #fff;
+}
+
+/* Shortcuts Dialog */
+.tk-dialog-backdrop,
 .bp-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(17, 20, 24, 0.4);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  z-index: 1100;
+  background: rgba(27, 27, 27, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 1000;
   display: grid;
   place-items: center;
-  animation: bpFadeIn 0.15s ease-out;
+  padding: 16px;
+  animation: tkFadeIn 0.2s ease-out;
 }
 
+.tk-dialog,
 .bp-dialog {
-  width: min(500px, 95vw);
-  background: var(--bp-white);
-  box-shadow: var(--bp-elevation-3);
-  border-radius: 3px;
-  overflow: hidden;
+  background: var(--tk-surface);
+  border-radius: 24px;
+  padding: 28px;
+  width: min(580px, 94vw);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
+  gap: 20px;
+  font-family: var(--font);
 }
 
+.tk-dialog-header,
 .bp-dialog-header {
-  height: 40px;
-  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--bp-border-color);
-  background: #f5f8fa;
 }
 
+.tk-dialog-header h3,
 .bp-dialog-header h3 {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 20px;
+  font-weight: 700;
 }
 
-.bp-dialog-body {
-  padding: 16px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  font-size: 12px;
-}
-
-/* --------------------------------------------------------------------------
-   12. Triage Toolbar Primitive (.bp-triage-toolbar)
-   -------------------------------------------------------------------------- */
-.bp-triage-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #f5f8fa;
-  border-top: 1px solid var(--bp-border-color);
-  font-size: 11px;
-  color: var(--bp-text-muted);
-}
-
-/* --------------------------------------------------------------------------
-   13. Unsure Emails Collapsible Details (.tk-unsure)
-   -------------------------------------------------------------------------- */
+/* Unsure list */
 .tk-unsure summary {
   cursor: pointer;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 10px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 4px 12px;
+  font-size: 15px;
+  font-weight: 700;
+  list-style: revert;
 }
 
 .tk-unsure summary small {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
-  color: var(--bp-text-muted);
+  color: var(--tk-muted);
 }
 
 .tk-unsure-list {
   display: flex;
   flex-direction: column;
-  margin-top: 10px;
-  max-height: 360px;
+  margin-top: 12px;
+  max-height: 420px;
   overflow-y: auto;
-  border-top: 1px solid var(--bp-border-muted);
-  padding-top: 8px;
 }
 
 .tk-unsure-list button {
   display: grid;
-  grid-template-columns: minmax(80px, 140px) minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: minmax(90px, 160px) minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: center;
-  padding: 6px 8px;
-  border-radius: 3px;
-  font-size: 12px;
+  padding: 9px 8px;
+  border-radius: 10px;
+  font-size: 13px;
 }
 
 .tk-unsure-list button:hover {
-  background: #ebf1f5;
+  background: var(--tk-lane);
 }
 
 .tk-unsure-list span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--bp-text-dark);
+  color: #3d3d39;
 }
 
 .tk-unsure-list small {
-  font-size: 11px;
-  color: var(--bp-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.tk-banner {
-  border-radius: 3px;
-  padding: 8px 12px;
   font-size: 12px;
-  background: var(--bp-intent-warning-bg);
-  color: var(--bp-intent-warning-text);
-  border: 1px solid rgba(191, 115, 0, 0.25);
+  color: var(--tk-muted);
 }
 
-.tk-message {
-  max-width: 420px;
-  margin: 12vh auto 0;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: var(--bp-text-dark);
-  font-size: 13px;
-}
-
-.tk-message h2 {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-/* --------------------------------------------------------------------------
-   14. Responsive Overrides & Motion Safeguards
-   -------------------------------------------------------------------------- */
-@media (max-width: 1080px) {
-  .bp-metrics-grid,
-  .tk-counts {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+/* Responsive adjustments */
+@media (max-width: 1180px) {
+  .tk-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {
-  .bp-dashboard,
-  .tk {
-    padding: 12px;
-  }
-  .bp-metrics-grid,
-  .tk-counts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .bp-metric-value,
-  .tk-count .num {
-    font-size: 22px;
-  }
-  .bp-drawer,
-  .bp-drawer.bp-position-right,
-  .tk-timeline-drawer {
-    width: 100vw;
-  }
+  .tk { padding: 18px; border-radius: 20px; }
+  .tk-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tk-count .num { font-size: 40px; }
+  .tk-range-controls { width: 100%; }
+  .tk-date-range { width: 100%; justify-content: space-between; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bp-drawer-backdrop,
-  .tk-drawer-backdrop,
-  .bp-drawer,
   .tk-timeline-drawer,
-  .bp-dialog-backdrop {
+  .tk-detail-drawer,
+  .bp-drawer,
+  .tk-date-range {
     animation: none;
     transition: none;
   }
