@@ -35,7 +35,7 @@ const TRIAGE_SHORTCUTS: ShortcutItem[] = [
 ];
 
 /**
- * Palantir Blueprint Accessible Keyboard Shortcuts Cheat Sheet Dialog
+ * Keyboard Shortcuts Cheat Sheet Dialog
  * Opens via '?' or 'Shift+/', dismisses via 'Escape' or backdrop click.
  */
 export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = ({
@@ -46,22 +46,22 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
 
   return (
     <div
-      className="bp-dialog-backdrop"
+      className="tk-dialog-backdrop bp-dialog-backdrop"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="bp-dialog"
+        className="tk-dialog bp-dialog"
         role="dialog"
         aria-modal="true"
         aria-label="Keyboard Shortcuts"
         onClick={e => e.stopPropagation()}
       >
-        <div className="bp-dialog-header">
+        <div className="tk-dialog-header bp-dialog-header">
           <h3>Keyboard Shortcuts</h3>
           <button
             type="button"
-            className="bp-drawer-close"
+            className="tk-drawer-close bp-drawer-close"
             onClick={onClose}
             aria-label="Close dialog"
             title="Close (Esc)"
@@ -70,18 +70,18 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
           </button>
         </div>
 
-        <div className="bp-dialog-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--bp-text-muted)', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--tk-muted)', marginBottom: 12 }}>
               Navigation & Inspection
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {NAVIGATION_SHORTCUTS.map((s, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: 'var(--bp-text-dark)' }}>{s.description}</span>
+                  <span style={{ fontSize: 13, color: 'var(--tk-ink)' }}>{s.description}</span>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {s.keys.map((k, kIdx) => (
-                      <kbd key={kIdx} className="bp-keycap">{k}</kbd>
+                      <kbd key={kIdx} className="tk-keycap bp-keycap">{k}</kbd>
                     ))}
                   </div>
                 </div>
@@ -90,16 +90,16 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
           </div>
 
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--bp-text-muted)', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--tk-muted)', marginBottom: 12 }}>
               Triage & Actions
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {TRIAGE_SHORTCUTS.map((s, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: 'var(--bp-text-dark)' }}>{s.description}</span>
+                  <span style={{ fontSize: 13, color: 'var(--tk-ink)' }}>{s.description}</span>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {s.keys.map((k, kIdx) => (
-                      <kbd key={kIdx} className="bp-keycap">{k}</kbd>
+                      <kbd key={kIdx} className="tk-keycap bp-keycap">{k}</kbd>
                     ))}
                   </div>
                 </div>
@@ -108,8 +108,8 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
           </div>
         </div>
 
-        <div className="bp-drawer-footer" style={{ justifyContent: 'flex-end', fontSize: 11, color: 'var(--bp-text-muted)' }}>
-          Press <kbd className="bp-keycap" style={{ margin: '0 4px' }}>Esc</kbd> to close
+        <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 12, color: 'var(--tk-muted)', borderTop: '1px solid var(--tk-line)', paddingTop: 16 }}>
+          Press <kbd className="tk-keycap bp-keycap" style={{ margin: '0 4px' }}>Esc</kbd> to close
         </div>
       </div>
     </div>
