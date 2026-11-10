@@ -168,7 +168,9 @@ export function buildBoard(applications: Application[], now: number): Board {
   // company first sent an assessment or interview
   const weekStart = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return d.getTime(); };
   const thisWeek = weekStart(now);
-  const starts = Array.from({ length: 12 }, (_, i) => thisWeek - (11 - i) * 7 * DAY);
+  // Step back by calendar weeks, not 7×24h: across a clock change (e.g. Nov 1)
+  // the 24h steps land an hour off midnight and no email matches its week.
+  const starts = Array.from({ length: 12 }, (_, i) => { const d = new Date(thisWeek); d.setDate(d.getDate() - (11 - i) * 7); return d.getTime(); });
   const series = (stage: Lane) => {
     const out = starts.map(() => 0);
     cards.forEach(c => {
