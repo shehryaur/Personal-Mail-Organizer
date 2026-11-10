@@ -69,15 +69,15 @@ describe('Tier 3: Cross-Feature Combinations (Pairwise Coverage & Interactions)'
   });
 
   // --------------------------------------------------------------------------
-  // Pair 3: Detail Drawer Open + Hotkey Status Triage
+  // Pair 3: Detail Drawer Open + Stage Change
   // --------------------------------------------------------------------------
-  it('Pair 3: With drawer open, pressing hotkey 3 triages status to Interview and updates badge', () => {
+  it('Pair 3: With drawer open, the Interview button changes the stage and badge; key 3 does nothing', () => {
     const triage = createTriageState(applications);
     const targetApp = applications[0]; // Lumen Analytics
     let isDrawerOpen = true;
 
-    // Triage to interview via hotkey 3
-    dispatchHotkey({
+    // The status keys were removed: 3 must not change the stage
+    const res = dispatchHotkey({
       activeRowIndex: 0,
       totalRows: applications.length,
       isDrawerOpen,
@@ -85,6 +85,11 @@ describe('Tier 3: Cross-Feature Combinations (Pairwise Coverage & Interactions)'
         triage.setStatus(targetApp.id, stage);
       },
     }, createMockKeyEvent('3'));
+    assert.equal(res.action, 'unmapped_key');
+    assert.equal(triage.hasOverride(targetApp.id), false);
+
+    // Clicking the drawer's Interview button
+    triage.setStatus(targetApp.id, 'interview');
 
     const updatedApps = triage.applyTo(applications);
     const updatedBoard = board.buildBoard(updatedApps, SIMULATED_NOW);
@@ -96,23 +101,27 @@ describe('Tier 3: Cross-Feature Combinations (Pairwise Coverage & Interactions)'
   });
 
   // --------------------------------------------------------------------------
-  // Pair 4: Detail Drawer Open + Pagination Advance (])
+  // Pair 4: Detail Drawer Open + Pagination Advance (Next button)
   // --------------------------------------------------------------------------
-  it('Pair 4: Advancing page with ] while drawer is open live-updates drawer to first record of new page', () => {
+  it('Pair 4: Advancing page with the Next button while drawer is open live-updates drawer to first record of new page', () => {
     const b = board.buildBoard(applications, SIMULATED_NOW);
     const PAGE_SIZE = 12;
     let page = 0;
     let activeRowIndex = 3;
     let isDrawerOpen = true;
 
-    // Advance page
-    dispatchHotkey({
-      isDrawerOpen,
-      onNextPage: () => {
-        page = Math.min(Math.ceil(b.cards.length / PAGE_SIZE) - 1, page + 1);
-        activeRowIndex = 0;
-      },
-    }, createMockKeyEvent(']'));
+    const clickNext = () => {
+      page = Math.min(Math.ceil(b.cards.length / PAGE_SIZE) - 1, page + 1);
+      activeRowIndex = 0;
+    };
+
+    // ] is no longer a shortcut
+    const res = dispatchHotkey({ isDrawerOpen, onNextPage: clickNext }, createMockKeyEvent(']'));
+    assert.equal(res.action, 'unmapped_key');
+    assert.equal(page, 0);
+
+    // Advance page with the Next button
+    clickNext();
 
     assert.equal(page, 1);
     assert.equal(activeRowIndex, 0);
@@ -462,13 +471,16 @@ describe('Tier 3: Cross-Feature Combinations (Pairwise Coverage & Interactions)'
     }, createMockKeyEvent('Enter'));
     assert.equal(isDrawerOpen, true);
 
-    // 3. Triage to Offer via hotkey 4
-    dispatchHotkey({
+    // 3. Key 4 no longer changes the stage; the drawer's Offer button does
+    const keyRes = dispatchHotkey({
       activeRowIndex,
       totalRows: 5,
       isDrawerOpen,
       onTriageStatus: (stage) => { triage.setStatus('app-kestrelai', stage); },
     }, createMockKeyEvent('4'));
+    assert.equal(keyRes.action, 'unmapped_key');
+    assert.equal(triage.hasOverride('app-kestrelai'), false);
+    triage.setStatus('app-kestrelai', 'offer');
     assert.equal(triage.overrides['app-kestrelai'], 'offer');
 
     // 4. Advance to next record via j
