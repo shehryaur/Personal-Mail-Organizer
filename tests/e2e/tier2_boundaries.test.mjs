@@ -669,12 +669,9 @@ describe('Tier 2: Boundary & Corner Cases (Limits, Clamping, Zero States & Fault
     });
 
     it('T2.F9.4: Changing pagination page resets active row selection to index 0 of new page', () => {
-      let nextPageCalled = false;
-      const res = dispatchHotkey({
-        onNextPage: () => { nextPageCalled = true; },
-      }, createMockKeyEvent(']'));
-      assert.equal(res.action, 'next_page');
-      assert.equal(nextPageCalled, true);
+      // Pages change with the Next button now (the ] key was removed)
+      const res = dispatchHotkey({}, createMockKeyEvent(']'));
+      assert.equal(res.action, 'unmapped_key');
       const { applications } = feed.adaptFeed(mock.SAMPLE_FEED, SIMULATED_NOW);
       const b = board.buildBoard(applications, SIMULATED_NOW);
       const html = renderComponent(ApplicationTable, {
@@ -1061,14 +1058,14 @@ describe('Tier 2: Boundary & Corner Cases (Limits, Clamping, Zero States & Fault
       assert.equal(active, 4);
     });
 
-    it('T2.F14.3: Changing page while drawer is open live-updates drawer content to index 0 of new page', () => {
+    it('T2.F14.3: With the drawer open, the removed ] key does not change the page', () => {
       let pageChanged = false;
       const res = dispatchHotkey({
         isDrawerOpen: true,
         onNextPage: () => { pageChanged = true; },
       }, createMockKeyEvent(']'));
-      assert.equal(res.action, 'next_page');
-      assert.equal(pageChanged, true);
+      assert.equal(res.action, 'unmapped_key');
+      assert.equal(pageChanged, false);
     });
 
     it('T2.F14.4: Deleting or filtering out active card from table closes or resets drawer safely', () => {
@@ -1124,7 +1121,7 @@ describe('Tier 2: Boundary & Corner Cases (Limits, Clamping, Zero States & Fault
   // Feature 15: Quick Status Transitions & Overrides (Boundaries)
   // --------------------------------------------------------------------------
   describe('Feature 15 Boundaries: Quick Status Transitions & Overrides', () => {
-    it('T2.F15.1: Pressing triage hotkey 1-5 when 0 rows are in table no-ops safely', () => {
+    it('T2.F15.1: Pressing a removed status key when 0 rows are in table no-ops safely', () => {
       let triageCalled = false;
       const res = dispatchHotkey({
         activeRowIndex: 0,
@@ -1132,7 +1129,7 @@ describe('Tier 2: Boundary & Corner Cases (Limits, Clamping, Zero States & Fault
         onTriageStatus: () => { triageCalled = true; },
       }, createMockKeyEvent('3'));
       assert.equal(triageCalled, false);
-      assert.equal(res.action, 'triage_noop');
+      assert.equal(res.action, 'unmapped_key');
     });
 
     it('T2.F15.2: Overriding application to stage it already has is idempotent', () => {
