@@ -359,7 +359,7 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className="tk-detail-section-title">
                 <Icon name="tune" size={15} />
-                Quick Stage Triage (1–5)
+                Change stage
               </span>
               {hasOverride && (
                 <span style={{ fontSize: 11, color: 'var(--tk-amber-ink)', fontWeight: 600 }}>
@@ -378,10 +378,9 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
                     type="button"
                     onClick={() => onSetStatus(card.app.id, action.lane)}
                     className={`tk-triage-pill bp-btn ${isCurrentLane ? 'on is-active' : ''}`}
-                    title={`Set stage: ${action.label} (Hotkey: [${action.hotkey}])`}
+                    title={`Set stage: ${action.label}`}
                   >
                     <span>{action.label}</span>
-                    <kbd className="tk-keycap bp-keycap">{action.hotkey}</kbd>
                   </button>
                 );
               })}
@@ -396,16 +395,12 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
                   opacity: hasOverride ? 1 : 0.45,
                   cursor: hasOverride ? 'pointer' : 'not-allowed',
                 }}
-                title="Reset manual override to classifier default (Hotkeys: [0] or [u])"
+                title="Reset to the model's stage"
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Icon name="restart_alt" size={13} />
                   Reset
                 </span>
-                <div style={{ display: 'flex', gap: 2 }}>
-                  <kbd className="tk-keycap bp-keycap">0</kbd>
-                  <kbd className="tk-keycap bp-keycap">u</kbd>
-                </div>
               </button>
             </div>
           </div>
@@ -596,11 +591,6 @@ export const ApplicationDetailDrawer: React.FC<ApplicationDetailDrawerProps> = (
             <kbd className="tk-keycap bp-keycap">j</kbd>
             <span>/</span>
             <kbd className="tk-keycap bp-keycap">k</kbd>
-            <span style={{ margin: '0 4px' }}>·</span>
-            <span>Triage:</span>
-            <kbd className="tk-keycap bp-keycap">1</kbd>
-            <span>–</span>
-            <kbd className="tk-keycap bp-keycap">5</kbd>
             <span style={{ margin: '0 4px' }}>·</span>
             <kbd className="tk-keycap bp-keycap">Esc</kbd>
             <span>closes</span>
