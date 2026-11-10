@@ -9,12 +9,9 @@ export interface TrackerHotkeyOptions {
   totalRows: number;
   onSelectRow: (index: number) => void;
   onInspectRow: (index: number) => void;
-  onTriageStatus?: (stage: string) => void;
   onFocusSearch: () => void;
   onToggleShortcuts: () => void;
   onToggleTimeline: () => void;
-  onNextPage: () => void;
-  onPrevPage: () => void;
   onDismiss: () => void;
   isDrawerOpen: boolean;
   isShortcutsOpen: boolean;
@@ -32,18 +29,6 @@ export interface HotkeyDispatchResult {
   stage?: string;
   index?: number;
 }
-
-const TRIAGE_MAP: Record<string, string> = {
-  '1': 'applied',
-  '2': 'assessment',
-  '3': 'interview',
-  'i': 'interview',
-  '4': 'offer',
-  '5': 'rejected',
-  'r': 'rejected',
-  '0': 'reset',
-  'u': 'reset',
-};
 
 /**
  * Pure hotkey dispatcher function implementing the Input Guard, modifier suppression,
@@ -66,12 +51,9 @@ export function dispatchTrackerHotkey(
     totalRows = 0,
     onSelectRow = () => {},
     onInspectRow = () => {},
-    onTriageStatus = () => {},
     onFocusSearch = () => {},
     onToggleShortcuts = () => {},
     onToggleTimeline = () => {},
-    onNextPage = () => {},
-    onPrevPage = () => {},
     onDismiss = () => {},
     isDrawerOpen = false,
     isShortcutsOpen = false,
@@ -142,36 +124,8 @@ export function dispatchTrackerHotkey(
     return { handled: true, action: 'nav_up', prevIndex: prevIdx };
   }
 
-  if (event.key === 'Home') {
-    if (typeof event.preventDefault === 'function') event.preventDefault();
-    if (totalRows <= 0) return { handled: true, action: 'navigate_noop' };
-    onSelectRow(0);
-    return { handled: true, action: 'nav_home', nextIndex: 0 };
-  }
-
-  if (event.key === 'End') {
-    if (typeof event.preventDefault === 'function') event.preventDefault();
-    if (totalRows <= 0) return { handled: true, action: 'navigate_noop' };
-    const lastIdx = Math.max(0, totalRows - 1);
-    onSelectRow(lastIdx);
-    return { handled: true, action: 'nav_end', nextIndex: lastIdx };
-  }
-
-  // 5. Pagination Hotkeys
-  if (event.key === ']' || event.key === 'n') {
-    if (typeof event.preventDefault === 'function') event.preventDefault();
-    onNextPage();
-    return { handled: true, action: 'next_page' };
-  }
-
-  if (event.key === '[' || event.key === 'p') {
-    if (typeof event.preventDefault === 'function') event.preventDefault();
-    onPrevPage();
-    return { handled: true, action: 'prev_page' };
-  }
-
-  // 6. Record Inspection Hotkeys (Enter / Space / o)
-  if (event.key === 'Enter' || event.key === ' ' || event.key === 'o') {
+  // 5. Open the selected application's details (Enter)
+  if (event.key === 'Enter') {
     if (typeof event.preventDefault === 'function') event.preventDefault();
     if (totalRows > 0 && activeRowIndex >= 0 && activeRowIndex < totalRows) {
       onInspectRow(activeRowIndex);
@@ -180,32 +134,21 @@ export function dispatchTrackerHotkey(
     return { handled: true, action: 'inspect_noop' };
   }
 
-  // 7. Quick Status Triage Hotkeys (1–5, i, r, 0, u)
-  if (event.key in TRIAGE_MAP) {
-    if (typeof event.preventDefault === 'function') event.preventDefault();
-    if (totalRows > 0 && activeRowIndex >= 0 && activeRowIndex < totalRows && onTriageStatus) {
-      const stage = TRIAGE_MAP[event.key];
-      onTriageStatus(stage);
-      return { handled: true, action: 'triage_status', stage };
-    }
-    return { handled: true, action: 'triage_noop' };
-  }
-
-  // 8. Shortcuts Cheat Sheet Modal Hotkey (? or Shift+/)
+  // 6. Shortcuts Cheat Sheet Modal Hotkey (? or Shift+/)
   if (event.key === '?' || (event.key === '/' && event.shiftKey)) {
     if (typeof event.preventDefault === 'function') event.preventDefault();
     onToggleShortcuts();
     return { handled: true, action: 'toggle_shortcuts' };
   }
 
-  // 9. Search Focus Hotkey (/)
+  // 7. Search Focus Hotkey (/)
   if (event.key === '/') {
     if (typeof event.preventDefault === 'function') event.preventDefault();
     onFocusSearch();
     return { handled: true, action: 'focus_search' };
   }
 
-  // 10. Timeline Drawer Toggle Hotkey (t)
+  // 8. Timeline Drawer Toggle Hotkey (t)
   if (event.key === 't') {
     if (typeof event.preventDefault === 'function') event.preventDefault();
     onToggleTimeline();
