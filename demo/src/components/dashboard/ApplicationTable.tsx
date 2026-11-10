@@ -75,11 +75,11 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
     <div className="tk-card bp-section-card" aria-label="Applications table view">
       <div className="tk-card-head bp-card-head">
         <h2>Where every application stands</h2>
-        <span className="aside">
-          {activeStage !== 'all'
-            ? `Filtered to ${focusName || activeStage}. Click stage again to show all.`
-            : 'Click a row to inspect details and email thread'}
-        </span>
+        {activeStage !== 'all' && (
+          <span className="aside">
+            {`Filtered to ${focusName || activeStage}. Click stage again to show all.`}
+          </span>
+        )}
       </div>
 
       <div className="tk-table-view">
@@ -201,18 +201,18 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
               className="tk-page-btn bp-page-btn"
               disabled={page === 0}
               onClick={onPrevPage}
-              title="Previous page ([)"
+              title="Previous page"
             >
-              ← Previous <kbd className="tk-keycap bp-keycap" style={{ marginLeft: 4 }}>[</kbd>
+              ← Previous
             </button>
             <button
               type="button"
               className="tk-page-btn bp-page-btn"
               disabled={page >= totalPages - 1}
               onClick={onNextPage}
-              title="Next page (])"
+              title="Next page"
             >
-              Next → <kbd className="tk-keycap bp-keycap" style={{ marginLeft: 4 }}>]</kbd>
+              Next →
             </button>
           </div>
         </div>
