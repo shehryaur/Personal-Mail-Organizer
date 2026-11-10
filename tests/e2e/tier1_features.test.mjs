@@ -419,35 +419,26 @@ describe('Tier 1: Feature Coverage (Opaque-Box Isolated Feature Tests)', () => {
       assert.equal(active, 2);
     });
 
-    it('F10.3: Home hotkey jumps selection to index 0', () => {
-      let active = 7;
-      const res = dispatchHotkey({
-        activeRowIndex: active,
-        totalRows: 12,
-        onSelectRow: (idx) => { active = idx; },
-      }, createMockKeyEvent('Home'));
-      assert.equal(res.action, 'nav_home');
-      assert.equal(active, 0);
+    it('F10.3: Home and End are not shortcuts and leave the selection alone', () => {
+      for (const key of ['Home', 'End']) {
+        let active = 7;
+        const res = dispatchHotkey({
+          activeRowIndex: active,
+          totalRows: 12,
+          onSelectRow: (idx) => { active = idx; },
+        }, createMockKeyEvent(key));
+        assert.equal(res.action, 'unmapped_key');
+        assert.equal(active, 7);
+      }
     });
 
-    it('F10.4: End hotkey jumps selection to last index of page', () => {
-      let active = 0;
-      const res = dispatchHotkey({
-        activeRowIndex: active,
-        totalRows: 12,
-        onSelectRow: (idx) => { active = idx; },
-      }, createMockKeyEvent('End'));
-      assert.equal(res.action, 'nav_end');
-      assert.equal(active, 11);
-    });
-
-    it('F10.5: ] advances to next page; [ returns to previous page', () => {
-      let pageAdv = false;
-      let pagePrev = false;
-      dispatchHotkey({ onNextPage: () => { pageAdv = true; } }, createMockKeyEvent(']'));
-      dispatchHotkey({ onPrevPage: () => { pagePrev = true; } }, createMockKeyEvent('['));
-      assert.ok(pageAdv);
-      assert.ok(pagePrev);
+    it('F10.4: Paging keys ] [ n p are not shortcuts (the page buttons page the table)', () => {
+      let paged = false;
+      for (const key of [']', '[', 'n', 'p']) {
+        const res = dispatchHotkey({ onNextPage: () => { paged = true; }, onPrevPage: () => { paged = true; } }, createMockKeyEvent(key));
+        assert.equal(res.action, 'unmapped_key');
+      }
+      assert.equal(paged, false);
     });
   });
 
@@ -531,10 +522,10 @@ describe('Tier 1: Feature Coverage (Opaque-Box Isolated Feature Tests)', () => {
       assert.equal(closedHtml, '');
     });
 
-    it('F12.5: Dialog displays grouped categories (Navigation, Triage, Search)', () => {
+    it('F12.5: Dialog displays grouped categories (Move around, Actions)', () => {
       const html = renderComponent(KeyboardShortcutsDialog, { isOpen: true, onClose: () => {} });
-      assert.ok(html.includes('Navigation &amp; Inspection') || html.includes('Navigation & Inspection'));
-      assert.ok(html.includes('Triage &amp; Actions') || html.includes('Triage & Actions'));
+      assert.ok(html.includes('Move around'));
+      assert.ok(html.includes('Actions'));
       assert.ok(html.includes('<kbd class="bp-keycap">j</kbd>'));
       assert.ok(html.includes('<kbd class="bp-keycap">k</kbd>'));
       assert.ok(html.includes('<kbd class="bp-keycap">Esc</kbd>'));
@@ -557,26 +548,17 @@ describe('Tier 1: Feature Coverage (Opaque-Box Isolated Feature Tests)', () => {
       assert.equal(inspectedIndex, 2);
     });
 
-    it('F13.2: Space keypress opens inspector drawer for active row', () => {
-      let inspectedIndex = null;
-      const res = dispatchHotkey({
-        activeRowIndex: 4,
-        totalRows: 12,
-        onInspectRow: (idx) => { inspectedIndex = idx; },
-      }, createMockKeyEvent(' '));
-      assert.equal(res.action, 'inspect_row');
-      assert.equal(inspectedIndex, 4);
-    });
-
-    it('F13.3: o keypress opens inspector drawer for active row', () => {
-      let inspectedIndex = null;
-      const res = dispatchHotkey({
-        activeRowIndex: 1,
-        totalRows: 12,
-        onInspectRow: (idx) => { inspectedIndex = idx; },
-      }, createMockKeyEvent('o'));
-      assert.equal(res.action, 'inspect_row');
-      assert.equal(inspectedIndex, 1);
+    it('F13.2: Space and o no longer open the drawer (Enter does)', () => {
+      for (const key of [' ', 'o']) {
+        let inspectedIndex = null;
+        const res = dispatchHotkey({
+          activeRowIndex: 4,
+          totalRows: 12,
+          onInspectRow: (idx) => { inspectedIndex = idx; },
+        }, createMockKeyEvent(key));
+        assert.equal(res.action, 'unmapped_key');
+        assert.equal(inspectedIndex, null);
+      }
     });
 
     it('F13.4: Escape keypress closes drawer when open', () => {
@@ -703,41 +685,17 @@ describe('Tier 1: Feature Coverage (Opaque-Box Isolated Feature Tests)', () => {
   // Feature 15: Quick Status Transitions & Overrides
   // --------------------------------------------------------------------------
   describe('Feature 15: Quick Status Transitions & Overrides', () => {
-    it('F15.1: Hotkeys 1-5 map to applied, assessment, interview, offer, rejected', () => {
-      const expected = {
-        '1': 'applied',
-        '2': 'assessment',
-        '3': 'interview',
-        '4': 'offer',
-        '5': 'rejected',
-      };
-      for (const [key, stage] of Object.entries(expected)) {
+    it('F15.1: Status keys 1-5, i, r, u and 0 were removed and change nothing', () => {
+      for (const key of ['1', '2', '3', '4', '5', 'i', 'r', 'u', '0']) {
         let transitioned = null;
-        dispatchHotkey({
+        const res = dispatchHotkey({
           activeRowIndex: 0,
           totalRows: 5,
           onTriageStatus: (s) => { transitioned = s; },
         }, createMockKeyEvent(key));
-        assert.equal(transitioned, stage);
+        assert.equal(res.action, 'unmapped_key');
+        assert.equal(transitioned, null);
       }
-    });
-
-    it('F15.2: Hotkey i transitions to interview; r transitions to rejected', () => {
-      let resI = null;
-      let resR = null;
-      dispatchHotkey({ activeRowIndex: 0, totalRows: 5, onTriageStatus: (s) => { resI = s; } }, createMockKeyEvent('i'));
-      dispatchHotkey({ activeRowIndex: 0, totalRows: 5, onTriageStatus: (s) => { resR = s; } }, createMockKeyEvent('r'));
-      assert.equal(resI, 'interview');
-      assert.equal(resR, 'rejected');
-    });
-
-    it('F15.3: Hotkey u or 0 triggers status reset', () => {
-      let resetU = null;
-      let reset0 = null;
-      dispatchHotkey({ activeRowIndex: 0, totalRows: 5, onTriageStatus: (s) => { resetU = s; } }, createMockKeyEvent('u'));
-      dispatchHotkey({ activeRowIndex: 0, totalRows: 5, onTriageStatus: (s) => { reset0 = s; } }, createMockKeyEvent('0'));
-      assert.equal(resetU, 'reset');
-      assert.equal(reset0, 'reset');
     });
 
     it('F15.4: Status override store updates application and recalculates board counts', () => {
