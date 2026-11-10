@@ -129,8 +129,8 @@
 .tk-head,
 .bp-navbar-compact {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 16px;
   margin-bottom: 8px;
 }
@@ -151,10 +151,13 @@
 
 .tk-head .grow,
 .bp-navbar-title-group {
-  flex: 1 1 260px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .tk-updated {
+  white-space: nowrap;
+  margin-left: -8px;
   font-size: 13px;
   color: var(--tk-muted);
 }
@@ -262,7 +265,7 @@
   width: 44px;
   height: 44px;
   border-radius: 22px;
-  background: var(--tk-surface);
+  background: transparent;
   display: grid;
   place-items: center;
   color: #444;
@@ -306,7 +309,7 @@
 .tk-timeline-btn {
   height: 44px;
   border-radius: 22px;
-  background: var(--tk-surface);
+  background: transparent;
   color: var(--tk-ink);
   display: flex;
   align-items: center;
@@ -335,6 +338,14 @@
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
   border-color: transparent;
+}
+
+/* Plain "?" for the shortcuts button */
+.tk-help-mark {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--tk-ink);
 }
 
 /* Keycaps */
@@ -1137,14 +1148,21 @@
 }
 
 /* Responsive adjustments */
-@media (max-width: 1180px) {
-  .tk-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Five count cards: one row while they fit, then 3 + 2 rows that both fill the
+   full width (6-column grid), then 2 + 2 + 1 on phones. Never a hole at the end. */
+@media (max-width: 900px) {
+  .tk-counts { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .tk-counts > * { grid-column: span 2; }
+  .tk-counts > :nth-child(n+4) { grid-column: span 3; }
 }
 
 @media (max-width: 700px) {
   .tk { padding: 18px; border-radius: 20px; }
   .tk-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tk-counts > *, .tk-counts > :nth-child(n+4) { grid-column: auto; }
+  .tk-counts > :last-child { grid-column: 1 / -1; }
   .tk-count .num { font-size: 40px; }
+  .tk-head { flex-wrap: wrap; }
   .tk-range-controls { width: 100%; }
   .tk-date-range { width: 100%; justify-content: space-between; }
 }
