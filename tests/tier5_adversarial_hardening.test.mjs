@@ -727,17 +727,15 @@ console.log('\n--- Suite 2: Rapid Interleaving & Multi-Tier State Concurrency Si
     assertEqual(activeCard.app.id, sampleCards[i + 1].app.id, `Step ${i}: activeCard live-swapped synchronously`);
   }
 
-  // Home key jump back to row 0
+  // Rapid k cycling back to row 0 (Home/End are no longer shortcuts)
+  for (let i = total - 1; i > 0; i--) {
+    dispatchTrackerHotkey(syncOptions, createMockEvent('k'));
+    assertEqual(activeCard.app.id, sampleCards[i - 1].app.id, `Back step ${i}: activeCard live-swapped synchronously`);
+  }
+  assertEqual(activeIndex, 0, 'activeIndex is 0 after cycling back');
   const resHome = dispatchTrackerHotkey(syncOptions, createMockEvent('Home'));
-  assertEqual(resHome.action, 'nav_home', 'Home key jumps directly to row 0');
-  assertEqual(activeIndex, 0, 'activeIndex is 0 after Home');
-  assertEqual(activeCard.app.id, sampleCards[0].app.id, 'activeCard is sampleCards[0] after Home');
-
-  // End key jump to last row
-  const resEnd = dispatchTrackerHotkey(syncOptions, createMockEvent('End'));
-  assertEqual(resEnd.action, 'nav_end', 'End key jumps directly to last row');
-  assertEqual(activeIndex, total - 1, 'activeIndex is last row after End');
-  assertEqual(activeCard.app.id, sampleCards[total - 1].app.id, 'activeCard is last card after End');
+  assertEqual(resHome.action, 'unmapped_key', 'Home key is no longer a shortcut');
+  assertEqual(activeIndex, 0, 'Home leaves the selection alone');
 }
 
 // 2.2 Search Query Mutation Interleaved with Selection Clamping
@@ -791,31 +789,14 @@ console.log('\n--- Suite 2: Rapid Interleaving & Multi-Tier State Concurrency Si
     isTimelineOpen: false,
   };
 
-  // Next page ]
-  dispatchTrackerHotkey(pageOptions, createMockEvent(']'));
-  assertEqual(currentPage, 1, 'First next page moves to page 1');
-  assertEqual(currentRow, 0, 'Next page resets selected row to 0');
-
-  // Next page n
-  dispatchTrackerHotkey(pageOptions, createMockEvent('n'));
-  assertEqual(currentPage, 2, 'Second next page moves to page 2 (last page)');
-  assertEqual(currentRow, 0, 'Selection reset to 0');
-
-  // Next page at boundary (page 2 of 3) stays clamped at 2
-  dispatchTrackerHotkey(pageOptions, createMockEvent(']'));
-  assertEqual(currentPage, 2, 'Next page at boundary stays clamped at 2');
-
-  // Prev page [
-  dispatchTrackerHotkey(pageOptions, createMockEvent('['));
-  assertEqual(currentPage, 1, 'Previous page moves to page 1');
-
-  // Prev page p
-  dispatchTrackerHotkey(pageOptions, createMockEvent('p'));
-  assertEqual(currentPage, 0, 'Previous page moves to page 0');
-
-  // Prev page at boundary stays clamped at 0
-  dispatchTrackerHotkey(pageOptions, createMockEvent('['));
-  assertEqual(currentPage, 0, 'Previous page at boundary stays clamped at 0');
+  // Paging keys were removed (the Previous / Next buttons page the table):
+  // ] n [ p must not move the page or the selection
+  for (const key of [']', 'n', '[', 'p']) {
+    const res = dispatchTrackerHotkey(pageOptions, createMockEvent(key));
+    assertEqual(res.action, 'unmapped_key', `Paging key "${key}" is no longer a shortcut`);
+    assertEqual(currentPage, 0, `Paging key "${key}" leaves the page alone`);
+    assertEqual(currentRow, 5, `Paging key "${key}" leaves the selection alone`);
+  }
 }
 
 // 2.4 Hierarchical Escape Stack Multi-Tier Hierarchy Under Concurrent Modals
