@@ -7,7 +7,7 @@ import './tracker.css';
 import { StageMetricsBar } from './StageMetricsBar';
 import { ApplicationTable } from './ApplicationTable';
 import { DateRangeControls } from './DateRangeControls';
-import { type Range, RANGES, RANGE_KEY, FROM_KEY, TO_KEY } from './dateRangeConstants';
+import { type Range, RANGES } from './dateRangeConstants';
 import { ApplicationDetailDrawer } from './ApplicationDetailDrawer';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { useTrackerHotkeys } from './useTrackerHotkeys';
@@ -52,15 +52,7 @@ function getEarliestDate(apps: Application[], fallbackNow: number): string {
   return toDateInputValue(earliest);
 }
 
-const savedRange = (): Range => {
-  try {
-    const v = window.localStorage.getItem(RANGE_KEY);
-    if (v === 'custom') return 'custom';
-    return (RANGES.find(r => r.key === v)?.key) || 'all';
-  } catch {
-    return 'all';
-  }
-};
+const DEFAULT_RANGE: Range = '7';
 
 function loadStatusOverrides(): Record<string, Lane> {
   try {
@@ -113,31 +105,17 @@ export const TrackerDashboard: React.FC<Props> = ({
   }, [applications, statusOverrides]);
 
   // 2. Date Range State
-  const [range, setRange] = useState<Range>(savedRange);
-  const [customFrom, setCustomFrom] = useState<string>(() => {
-    try {
-      const v = window.localStorage.getItem(FROM_KEY);
-      if (v) return v;
-    } catch {}
-    const initialRange = savedRange();
-    if (initialRange === 'all') return getEarliestDate(applications, now);
-    const days = RANGES.find(r => r.key === initialRange)?.days ?? 30;
-    return toDateInputValue(now - days * 86400000);
-  });
-  const [customTo, setCustomTo] = useState<string>(() => {
-    try {
-      const v = window.localStorage.getItem(TO_KEY);
-      if (v) return v;
-    } catch {}
-    return toDateInputValue(now);
-  });
+  // Always opens on the last week; picking another range lasts until reload.
+  const [range, setRange] = useState<Range>(DEFAULT_RANGE);
+  const [customFrom, setCustomFrom] = useState<string>(() => toDateInputValue(now - 7 * 86400000));
+  const [customTo, setCustomTo] = useState<string>(() => toDateInputValue(now));
 
   // Table & UI state
-  const [tableStage, setTableStage] = useState<string>('all');
+  const [tableStage, setTableStage] = useState<string>('interview'); // opens on Interviews
   const [tableSearch, setTableSearch] = useState<string>('');
   const [tablePage, setTablePage] = useState<number>(0);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number>(0);
-  const [focus, setFocus] = useState<Lane | null>(null);
+  const [focus, setFocus] = useState<Lane | null>('interview');
   const [chart, setChart] = useState<Chart>('applied');
   const [showTimeline, setShowTimeline] = useState<boolean>(false);
   const [showShortcuts, setShowShortcuts] = useState<boolean>(false);
@@ -149,17 +127,12 @@ export const TrackerDashboard: React.FC<Props> = ({
     setRange(r);
     setTablePage(0);
     setSelectedRowIndex(0);
-    try { window.localStorage.setItem(RANGE_KEY, r); } catch {}
     if (r !== 'custom') {
       const days = RANGES.find(x => x.key === r)?.days ?? 0;
       const toStr = toDateInputValue(now);
       const fromStr = days > 0 ? toDateInputValue(now - days * 86400000) : getEarliestDate(applications, now);
       setCustomFrom(fromStr);
       setCustomTo(toStr);
-      try {
-        window.localStorage.setItem(FROM_KEY, fromStr);
-        window.localStorage.setItem(TO_KEY, toStr);
-      } catch {}
     }
   };
 
@@ -168,10 +141,6 @@ export const TrackerDashboard: React.FC<Props> = ({
     setRange('custom');
     setTablePage(0);
     setSelectedRowIndex(0);
-    try {
-      window.localStorage.setItem(FROM_KEY, val);
-      window.localStorage.setItem(RANGE_KEY, 'custom');
-    } catch {}
   };
 
   const handleToChange = (val: string) => {
@@ -179,10 +148,6 @@ export const TrackerDashboard: React.FC<Props> = ({
     setRange('custom');
     setTablePage(0);
     setSelectedRowIndex(0);
-    try {
-      window.localStorage.setItem(TO_KEY, val);
-      window.localStorage.setItem(RANGE_KEY, 'custom');
-    } catch {}
   };
 
   const handleSelectStage = (stage: string) => {
@@ -295,17 +260,6 @@ export const TrackerDashboard: React.FC<Props> = ({
     });
   };
 
-  const handleTriageStatus = (stage: string) => {
-    const targetCard = pagedCards[safeRowIndex];
-    if (!targetCard) return;
-    const appId = targetCard.app.id;
-    if (stage === 'reset') {
-      handleResetStatus(appId);
-    } else {
-      handleSetStatus(appId, stage as Lane);
-    }
-  };
-
   // Keyboard Hotkeys Engine
   useTrackerHotkeys({
     activeRowIndex: safeRowIndex,
@@ -316,7 +270,6 @@ export const TrackerDashboard: React.FC<Props> = ({
       setShowTimeline(false);
       setIsDrawerOpen(true);
     },
-    onTriageStatus: handleTriageStatus,
     onFocusSearch: () => {
       if (searchInputRef.current) {
         searchInputRef.current.focus();
@@ -330,18 +283,6 @@ export const TrackerDashboard: React.FC<Props> = ({
         if (next) setIsDrawerOpen(false);
         return next;
       });
-    },
-    onNextPage: () => {
-      if (safePage < totalPages - 1) {
-        setTablePage(safePage + 1);
-        setSelectedRowIndex(0);
-      }
-    },
-    onPrevPage: () => {
-      if (safePage > 0) {
-        setTablePage(safePage - 1);
-        setSelectedRowIndex(0);
-      }
     },
     onDismiss: () => {
       if (isDrawerOpen) {
