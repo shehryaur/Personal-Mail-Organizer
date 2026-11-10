@@ -12,25 +12,15 @@ interface ShortcutItem {
 }
 
 const NAVIGATION_SHORTCUTS: ShortcutItem[] = [
-  { keys: ['j', '↓'], description: 'Select next record' },
-  { keys: ['k', '↑'], description: 'Select previous record' },
-  { keys: ['Home'], description: 'Jump to first record' },
-  { keys: ['End'], description: 'Jump to last record' },
-  { keys: ['['], description: 'Previous page' },
-  { keys: [']'], description: 'Next page' },
-  { keys: ['Enter', 'Space', 'o'], description: 'Inspect application (open email)' },
-  { keys: ['Esc'], description: 'Dismiss modal / clear selection' },
+  { keys: ['j', '↓'], description: 'Next application' },
+  { keys: ['k', '↑'], description: 'Previous application' },
+  { keys: ['Enter'], description: 'Open application details' },
+  { keys: ['Esc'], description: 'Close' },
 ];
 
-const TRIAGE_SHORTCUTS: ShortcutItem[] = [
-  { keys: ['1'], description: 'Set status: Applied' },
-  { keys: ['2'], description: 'Set status: Assessment' },
-  { keys: ['3', 'i'], description: 'Set status: Interview' },
-  { keys: ['4'], description: 'Set status: Offer' },
-  { keys: ['5', 'r'], description: 'Set status: Rejected' },
-  { keys: ['0', 'u'], description: 'Reset status override' },
-  { keys: ['/'], description: 'Focus search input' },
-  { keys: ['t'], description: 'Toggle activity timeline' },
+const ACTION_SHORTCUTS: ShortcutItem[] = [
+  { keys: ['/'], description: 'Search' },
+  { keys: ['t'], description: 'Activity timeline' },
   { keys: ['?'], description: 'Show keyboard shortcuts' },
 ];
 
@@ -73,7 +63,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--tk-muted)', marginBottom: 12 }}>
-              Navigation & Inspection
+              Move around
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {NAVIGATION_SHORTCUTS.map((s, idx) => (
@@ -91,10 +81,10 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
 
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--tk-muted)', marginBottom: 12 }}>
-              Triage & Actions
+              Actions
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {TRIAGE_SHORTCUTS.map((s, idx) => (
+              {ACTION_SHORTCUTS.map((s, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <span style={{ fontSize: 13, color: 'var(--tk-ink)' }}>{s.description}</span>
                   <div style={{ display: 'flex', gap: 4 }}>
