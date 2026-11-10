@@ -310,14 +310,13 @@ console.log('--- Suite 1: Synchronous Card Live-Swapping & Keystroke Synchroniza
   assertEqual(activeRowIndex, totalRows - 1, 'Pressing "j" at last index clamps at totalRows - 1');
   assertEqual(isDrawerOpen, true, 'Drawer remains open at bottom boundary');
 
-  // Test 1.3: Jump navigation Home / End
+  // Test 1.3: Home / End are no longer shortcuts: the selected row stays put
+  activeRowIndex = 2;
   res = dispatchTrackerHotkey(hotkeyOptions, createMockEvent('Home'));
-  assertEqual(activeRowIndex, 0, 'Home key jumps to row 0');
-  assertEqual(isDrawerOpen, true, 'Drawer remains open on Home jump');
-
+  assertEqual(activeRowIndex, 2, 'Home key leaves the selected row alone');
   res = dispatchTrackerHotkey(hotkeyOptions, createMockEvent('End'));
-  assertEqual(activeRowIndex, totalRows - 1, 'End key jumps to last row');
-  assertEqual(isDrawerOpen, true, 'Drawer remains open on End jump');
+  assertEqual(activeRowIndex, 2, 'End key leaves the selected row alone');
+  assertEqual(isDrawerOpen, true, 'Drawer remains open');
 
   // Test 1.4: Auto-expansion state reset across different cards (no state pollution)
   const cardWithMultiEmails = realCards.find(c => c.app.emails.length > 1) || realCards[0];
@@ -426,7 +425,7 @@ console.log('\n--- Suite 2: Drawer Edge Cases & Adversarial Malformed Data ---')
   assert(htmlZero.includes('Email Thread History (0)'), 'Renders "Email Thread History (0)"');
   assert(htmlZero.includes('Deterministic Rule Engine'), 'Falls back to Deterministic Rule Engine when 0 emails');
   assert(htmlZero.includes('None'), 'Renders "None" for missing deadline');
-  assert(htmlZero.includes('Quick Stage Triage'), 'Quick triage buttons still render');
+  assert(htmlZero.includes('Change stage'), 'Change stage buttons still render');
 
   // 2.5 Application with 50 emails (stressing scroll container)
   const synthetic50Emails = [];
@@ -895,17 +894,17 @@ console.log('\n--- Suite 6: Quick Status Triage Action Bar & Lane Transitions --
     })
   );
 
-  // 6.1 Renders all 5 triage buttons with hotkey keycaps
+  // 6.1 Renders all 5 stage buttons (no hotkey keycaps)
   assert(htmlTriage.includes('Applied'), 'Renders Applied action');
   assert(htmlTriage.includes('Assessment'), 'Renders Assessment action');
   assert(htmlTriage.includes('Interview'), 'Renders Interview action');
   assert(htmlTriage.includes('Offer'), 'Renders Offer action');
   assert(htmlTriage.includes('Rejected'), 'Renders Rejected action');
-  assert(htmlTriage.includes('>1</kbd>'), 'Applied has keycap [1]');
-  assert(htmlTriage.includes('>2</kbd>'), 'Assessment has keycap [2]');
-  assert(htmlTriage.includes('>3</kbd>'), 'Interview has keycap [3]');
-  assert(htmlTriage.includes('>4</kbd>'), 'Offer has keycap [4]');
-  assert(htmlTriage.includes('>5</kbd>'), 'Rejected has keycap [5]');
+  assert(!htmlTriage.includes('>1</kbd>'), 'Applied has no [1] keycap');
+  assert(!htmlTriage.includes('>2</kbd>'), 'Assessment has no [2] keycap');
+  assert(!htmlTriage.includes('>3</kbd>'), 'Interview has no [3] keycap');
+  assert(!htmlTriage.includes('>4</kbd>'), 'Offer has no [4] keycap');
+  assert(!htmlTriage.includes('>5</kbd>'), 'Rejected has no [5] keycap');
 
   // 6.2 Active lane highlighting
   // cardInterview has lane 'interview': Interview button has .is-active and cobalt blue
