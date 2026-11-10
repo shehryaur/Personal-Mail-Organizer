@@ -270,7 +270,7 @@ console.log('--- Suite 1: ApplicationDetailDrawer Triage Button Group & Reset --
   );
 
   assert(baselineHtml.includes('Stripe'), 'Renders company name in drawer header');
-  assert(baselineHtml.includes('Quick Stage Triage'), 'Renders Quick Stage Triage action section');
+  assert(baselineHtml.includes('Change stage'), 'Renders the Change stage section');
   assert(baselineHtml.includes('Applied'), 'Renders Applied action button');
   assert(baselineHtml.includes('Assessment'), 'Renders Assessment action button');
   assert(baselineHtml.includes('Interview'), 'Renders Interview action button');
@@ -279,12 +279,9 @@ console.log('--- Suite 1: ApplicationDetailDrawer Triage Button Group & Reset --
   assert(baselineHtml.includes('Reset'), 'Renders Reset action button');
 
   // Keycap hotkey indicators
-  assert(baselineHtml.includes('>1</kbd>'), 'Applied button displays [1] hotkey keycap');
-  assert(baselineHtml.includes('>2</kbd>'), 'Assessment button displays [2] hotkey keycap');
-  assert(baselineHtml.includes('>3</kbd>'), 'Interview button displays [3] hotkey keycap');
-  assert(baselineHtml.includes('>4</kbd>'), 'Offer button displays [4] hotkey keycap');
-  assert(baselineHtml.includes('>5</kbd>'), 'Rejected button displays [5] hotkey keycap');
-  assert(baselineHtml.includes('>0</kbd>') && baselineHtml.includes('>u</kbd>'), 'Reset button displays [0] and [u] hotkey keycaps');
+  for (const k of ['1', '2', '3', '4', '5', '0', 'u']) {
+    assert(!baselineHtml.includes(`>${k}</kbd>`), `Stage buttons no longer show a [${k}] keycap`);
+  }
 
   // Baseline hasOverride=false invariants:
   assert(!baselineHtml.includes('Stage manually overridden to'), 'Baseline drawer does NOT show overridden provenance banner');
@@ -339,45 +336,17 @@ console.log('\n--- Suite 2: Hotkey Triage Engine & Input Guard Safety ---');
     isTimelineOpen: false,
   };
 
-  const hotkeyExpectations = [
-    { key: '1', expectedStage: 'applied', expectedAction: 'triage_status' },
-    { key: '2', expectedStage: 'assessment', expectedAction: 'triage_status' },
-    { key: '3', expectedStage: 'interview', expectedAction: 'triage_status' },
-    { key: 'i', expectedStage: 'interview', expectedAction: 'triage_status' },
-    { key: '4', expectedStage: 'offer', expectedAction: 'triage_status' },
-    { key: '5', expectedStage: 'rejected', expectedAction: 'triage_status' },
-    { key: 'r', expectedStage: 'rejected', expectedAction: 'triage_status' },
-    { key: '0', expectedStage: 'reset', expectedAction: 'triage_status' },
-    { key: 'u', expectedStage: 'reset', expectedAction: 'triage_status' },
-  ];
-
-  for (const { key, expectedStage, expectedAction } of hotkeyExpectations) {
+  // 2.1 Status shortcuts were removed: overrides are click-only in the drawer,
+  // so 1–5, i, r, 0 and u must not change a stage
+  for (const key of ['1', '2', '3', '4', '5', 'i', 'r', '0', 'u']) {
     lastTriagedStage = null;
     const evt = createMockEvent(key);
     const res = dispatchTrackerHotkey(dispatchOptions, evt);
-
-    assertEqual(res.handled, true, `Hotkey '${key}' is handled: true`);
-    assertEqual(res.action, expectedAction, `Hotkey '${key}' dispatches action '${expectedAction}'`);
-    assertEqual(res.stage, expectedStage, `Hotkey '${key}' maps to stage '${expectedStage}'`);
-    assertEqual(lastTriagedStage, expectedStage, `Hotkey '${key}' invokes callback with '${expectedStage}'`);
-    assertEqual(evt.isDefaultPrevented, true, `Hotkey '${key}' calls preventDefault()`);
+    assertEqual(res.handled, false, `Removed hotkey '${key}' is not handled`);
+    assertEqual(res.action, 'unmapped_key', `Removed hotkey '${key}' is unmapped`);
+    assertEqual(lastTriagedStage, null, `Removed hotkey '${key}' does not change a stage`);
+    assertEqual(Boolean(evt.isDefaultPrevented), false, `Removed hotkey '${key}' leaves the key alone`);
   }
-
-  // 2.2 Boundary: totalRows = 0 suppresses triage
-  lastTriagedStage = null;
-  const emptyOptions = { ...dispatchOptions, totalRows: 0 };
-  const evtZero = createMockEvent('3');
-  const resZero = dispatchTrackerHotkey(emptyOptions, evtZero);
-  assertEqual(resZero.handled, true, 'Hotkey on totalRows=0 is handled');
-  assertEqual(resZero.action, 'triage_noop', 'Hotkey on totalRows=0 returns triage_noop');
-  assertEqual(lastTriagedStage, null, 'Callback is NOT called when totalRows=0');
-
-  // 2.3 Boundary: activeRowIndex out-of-bounds suppresses triage
-  lastTriagedStage = null;
-  const oobOptions = { ...dispatchOptions, activeRowIndex: 999 };
-  const resOob = dispatchTrackerHotkey(oobOptions, createMockEvent('4'));
-  assertEqual(resOob.action, 'triage_noop', 'Hotkey with out-of-bounds row returns triage_noop');
-  assertEqual(lastTriagedStage, null, 'Callback is NOT called when activeRowIndex is out of bounds');
 
   // 2.4 Safety Guard: Input typing suppresses triage hotkeys
   const editableTags = ['INPUT', 'TEXTAREA', 'SELECT'];
