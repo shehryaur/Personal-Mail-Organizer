@@ -35,7 +35,6 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
   onToChange,
   showTimeline,
   onToggleTimeline,
-  onOpenSettings,
   onRefresh,
   refreshing,
   updatedLabel,
@@ -43,10 +42,26 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
 }) => {
   return (
     <div className="tk-head bp-navbar-compact">
-      <div className="grow bp-navbar-title-group">
-        <h1>Dashboard</h1>
-        <span className="sub bp-navbar-sub">Job applications</span>
-      </div>
+      {onRefresh && (
+        <button
+          type="button"
+          className="tk-icon-btn"
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-label="Check for new emails"
+          title="Check for new emails"
+        >
+          <Icon name="refresh" size={20} className={refreshing ? 'animate-spin' : ''} />
+        </button>
+      )}
+
+      {updatedLabel && (
+        <span className="tk-updated" aria-live="polite">
+          {refreshing ? 'Checking for new emails…' : updatedLabel}
+        </span>
+      )}
+
+      <div className="grow" />
 
       <div className="tk-range-controls bp-navbar-actions" role="group" aria-label="Time period and date filters">
         <div className="tk-seg bp-btn-group" role="group" aria-label="Time period presets">
@@ -100,12 +115,6 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
         )}
       </div>
 
-      {updatedLabel && (
-        <span className="tk-updated" aria-live="polite">
-          {refreshing ? 'Checking for new emails…' : updatedLabel}
-        </span>
-      )}
-
       <button
         type="button"
         className={`tk-timeline-btn ${showTimeline ? 'on' : ''}`}
@@ -115,7 +124,6 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
       >
         <Icon name="bar_chart" size={18} />
         <span>Timeline</span>
-        <kbd className="tk-keycap bp-keycap" style={{ marginLeft: 4 }}>t</kbd>
       </button>
 
       {onOpenShortcuts && (
@@ -126,32 +134,7 @@ export const DateRangeControls: React.FC<DateRangeControlsProps> = ({
           aria-label="Keyboard Shortcuts"
           title="Keyboard Shortcuts (?)"
         >
-          <kbd className="tk-keycap bp-keycap">?</kbd>
-        </button>
-      )}
-
-      {onOpenSettings && (
-        <button
-          type="button"
-          className="tk-icon-btn"
-          onClick={onOpenSettings}
-          aria-label="Settings"
-          title="Settings"
-        >
-          <Icon name="settings" size={20} />
-        </button>
-      )}
-
-      {onRefresh && (
-        <button
-          type="button"
-          className="tk-cta"
-          onClick={onRefresh}
-          disabled={refreshing}
-          aria-label="Check for new emails"
-        >
-          <span>{refreshing ? 'Checking…' : 'Check for new emails'}</span>
-          <span><Icon name="refresh" size={16} /></span>
+          <span className="tk-help-mark" aria-hidden="true">?</span>
         </button>
       )}
     </div>
