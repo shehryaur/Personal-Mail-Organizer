@@ -13,6 +13,23 @@ const BRIEFCASE_ICON =
   );
 const AUTO_REFRESH_MIN_GAP_MS = 45 * 1000;
 const NEW_MAIL_SETTLE_MS = 10 * 1000; // ignore the rows Gmail renders on first load
+const FALLBACK_AFTER_MS = 6 * 1000;
+
+function addFallbackButton(open: () => void) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.title = 'Open Job Tracker';
+  btn.innerHTML = `<img src="${BRIEFCASE_ICON}" alt="" width="18" height="18"> Job Tracker`;
+  Object.assign(btn.style, {
+    position: 'fixed', left: '16px', bottom: '16px', zIndex: '2147483000',
+    display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px',
+    border: '1px solid #c4c7c5', borderRadius: '16px', background: '#fff', color: '#1f1f1f',
+    font: '500 14px "Google Sans", Roboto, Arial, sans-serif', cursor: 'pointer',
+    boxShadow: '0 1px 3px rgba(0,0,0,.2)',
+  });
+  btn.addEventListener('click', open);
+  document.body.appendChild(btn);
+}
 
 async function main() {
   const { appId } = await chrome.storage.local.get('appId');
@@ -24,7 +41,20 @@ async function main() {
   const extOrigin = new URL(chrome.runtime.getURL('board.html')).origin;
 
   // ---- Sidebar item + the dashboard page -------------------------------------------
-  sdk.NavMenu.addNavItem({ name: 'Job Tracker', routeID: ROUTE, iconUrl: BRIEFCASE_ICON, orderHint: -1 });
+  try {
+    sdk.NavMenu.addNavItem({ name: 'Job Tracker', routeID: ROUTE, iconUrl: BRIEFCASE_ICON, orderHint: -1 });
+  } catch (err) {
+    console.warn('[Job Tracker] Sidebar item failed', err);
+  }
+  // Newer Gmail layouts can stop InboxSDK finding the left menu (it logs "should not
+  // happen" and adds nothing). Then show a small button that opens the same page.
+  setTimeout(() => {
+    const shown = Array.from(document.querySelectorAll<HTMLElement>('.inboxsdk__navItem'))
+      .some(el => el.offsetParent !== null && (el.textContent || '').includes('Job Tracker'));
+    if (shown) return;
+    console.warn('[Job Tracker] Sidebar item missing; showing the Job Tracker button instead.');
+    addFallbackButton(() => sdk.Router.goto(ROUTE));
+  }, FALLBACK_AFTER_MS);
 
   sdk.Router.handleCustomRoute(ROUTE, view => {
     view.setFullWidth(true);
