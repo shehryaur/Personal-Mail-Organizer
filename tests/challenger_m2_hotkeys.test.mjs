@@ -180,20 +180,6 @@ console.log('--- Suite 1: Exhaustive Hotkey Mapping & Action Verification ---');
   assertEqual(res.prevIndex, 1, 'Hotkey "ArrowUp" prevIndex');
   assertEqual(selectedIdx, 1, 'Hotkey "ArrowUp" onSelectRow callback');
 
-  resetTrackers();
-  ev = createMockEvent('Home');
-  res = dispatchTrackerHotkey(baseOptions, ev);
-  assertEqual(res.action, 'nav_home', 'Hotkey "Home" action');
-  assertEqual(res.nextIndex, 0, 'Hotkey "Home" nextIndex');
-  assertEqual(selectedIdx, 0, 'Hotkey "Home" onSelectRow callback');
-
-  resetTrackers();
-  ev = createMockEvent('End');
-  res = dispatchTrackerHotkey(baseOptions, ev);
-  assertEqual(res.action, 'nav_end', 'Hotkey "End" action');
-  assertEqual(res.nextIndex, 9, 'Hotkey "End" nextIndex');
-  assertEqual(selectedIdx, 9, 'Hotkey "End" onSelectRow callback');
-
   // 2. Inspection keys
   resetTrackers();
   ev = createMockEvent('Enter');
@@ -203,44 +189,15 @@ console.log('--- Suite 1: Exhaustive Hotkey Mapping & Action Verification ---');
   assertEqual(inspectedIdx, 2, 'Hotkey "Enter" onInspectRow callback');
   assertEqual(ev.isDefaultPrevented, true, 'Hotkey "Enter" preventDefault');
 
-  resetTrackers();
-  ev = createMockEvent(' ');
-  res = dispatchTrackerHotkey(baseOptions, ev);
-  assertEqual(res.action, 'inspect_row', 'Hotkey "Space" action');
-  assertEqual(res.index, 2, 'Hotkey "Space" index');
-  assertEqual(inspectedIdx, 2, 'Hotkey "Space" onInspectRow callback');
-
-  resetTrackers();
-  ev = createMockEvent('o');
-  res = dispatchTrackerHotkey(baseOptions, ev);
-  assertEqual(res.action, 'inspect_row', 'Hotkey "o" action');
-  assertEqual(res.index, 2, 'Hotkey "o" index');
-  assertEqual(inspectedIdx, 2, 'Hotkey "o" onInspectRow callback');
-
-  // 3. Pagination keys
-  resetTrackers();
-  ev = createMockEvent(']');
-  res = dispatchTrackerHotkey(baseOptions, ev);
-  assertEqual(res.action, 'next_page', 'Hotkey "]" action');
-  assertEqual(nextPaged, true, 'Hotkey "]" onNextPage callback');
-
-  resetTrackers();
-  ev = createMockEvent('n');
-  res = dispatchTrackerHotkey(baseOptions, ev);
-  assertEqual(res.action, 'next_page', 'Hotkey "n" action');
-  assertEqual(nextPaged, true, 'Hotkey "n" onNextPage callback');
-
-  resetTrackers();
-  ev = createMockEvent('[');
-  res = dispatchTrackerHotkey(baseOptions, ev);
-  assertEqual(res.action, 'prev_page', 'Hotkey "[" action');
-  assertEqual(prevPaged, true, 'Hotkey "[" onPrevPage callback');
-
-  resetTrackers();
-  ev = createMockEvent('p');
-  res = dispatchTrackerHotkey(baseOptions, ev);
-  assertEqual(res.action, 'prev_page', 'Hotkey "p" action');
-  assertEqual(prevPaged, true, 'Hotkey "p" onPrevPage callback');
+  // 3. Removed shortcuts (Space, o, Home, End, paging, status triage) do nothing
+  for (const key of [' ', 'o', 'Home', 'End', '[', ']', 'n', 'p', '1', '2', '3', '4', '5', 'i', 'r', '0', 'u']) {
+    resetTrackers();
+    ev = createMockEvent(key);
+    res = dispatchTrackerHotkey(baseOptions, ev);
+    assertEqual(res.handled, false, `Removed key "${key}" is not handled`);
+    assertEqual(res.action, 'unmapped_key', `Removed key "${key}" is unmapped`);
+    assertEqual(selectedIdx === null && inspectedIdx === null && triagedStage === null && !nextPaged && !prevPaged, true, `Removed key "${key}" triggers no action`);
+  }
 
   // 4. Search and Cheat Sheet
   resetTrackers();
@@ -267,30 +224,6 @@ console.log('--- Suite 1: Exhaustive Hotkey Mapping & Action Verification ---');
   res = dispatchTrackerHotkey(baseOptions, ev);
   assertEqual(res.action, 'toggle_timeline', 'Hotkey "t" action');
   assertEqual(timelineToggled, true, 'Hotkey "t" onToggleTimeline callback');
-
-  // 6. Quick Status Triage keys
-  const expectedTriage = [
-    { key: '1', stage: 'applied' },
-    { key: '2', stage: 'assessment' },
-    { key: '3', stage: 'interview' },
-    { key: 'i', stage: 'interview' },
-    { key: '4', stage: 'offer' },
-    { key: '5', stage: 'rejected' },
-    { key: 'r', stage: 'rejected' },
-    { key: '0', stage: 'reset' },
-    { key: 'u', stage: 'reset' },
-  ];
-
-  for (const item of expectedTriage) {
-    resetTrackers();
-    ev = createMockEvent(item.key);
-    res = dispatchTrackerHotkey(baseOptions, ev);
-    assertEqual(res.handled, true, `Triage key "${item.key}" handled flag`);
-    assertEqual(res.action, 'triage_status', `Triage key "${item.key}" action`);
-    assertEqual(res.stage, item.stage, `Triage key "${item.key}" mapped stage`);
-    assertEqual(triagedStage, item.stage, `Triage key "${item.key}" onTriageStatus callback`);
-    assertEqual(ev.isDefaultPrevented, true, `Triage key "${item.key}" preventDefault`);
-  }
 
   // 7. Unmapped keys rejection
   const unmappedKeys = ['a', 'b', 'c', 'e', 'f', 'g', 'h', 'm', 'q', 's', 'v', 'w', 'x', 'y', 'z', 'F1', 'Tab', 'Backspace', 'Delete', 'PageUp', 'PageDown', 'Control', 'Shift', 'Alt'];
@@ -361,17 +294,6 @@ console.log('--- Suite 2: Boundary Clamping & Navigation Limits ---');
     assert(currentActive === 0, `Repeated k press ${i + 1} stays clamped at index 0`);
   }
 
-  // Home key from intermediate or last row jumps directly to 0
-  for (const startIdx of [1, 5, 11]) {
-    const res = dispatchTrackerHotkey(testOptions(startIdx, 12), createMockEvent('Home'));
-    assertEqual(res.nextIndex, 0, `Home key from index ${startIdx} jumps to 0`);
-  }
-
-  // End key from intermediate or first row jumps directly to totalRows - 1
-  for (const startIdx of [0, 4, 10]) {
-    const res = dispatchTrackerHotkey(testOptions(startIdx, 12), createMockEvent('End'));
-    assertEqual(res.nextIndex, 11, `End key from index ${startIdx} jumps to 11`);
-  }
 }
 
 // -----------------------------------------------------------------------------
@@ -399,7 +321,7 @@ console.log('--- Suite 3: Total Rows = 0 Edge Case & Malformed State Resilience 
   }
 
   // Navigation on totalRows = 0
-  const navKeys = ['j', 'k', 'ArrowDown', 'ArrowUp', 'Home', 'End'];
+  const navKeys = ['j', 'k', 'ArrowDown', 'ArrowUp'];
   for (const key of navKeys) {
     resetZeroTrackers();
     let res;
@@ -415,7 +337,7 @@ console.log('--- Suite 3: Total Rows = 0 Edge Case & Malformed State Resilience 
   }
 
   // Inspection on totalRows = 0
-  const inspectKeys = ['Enter', ' ', 'o'];
+  const inspectKeys = ['Enter'];
   for (const key of inspectKeys) {
     resetZeroTrackers();
     let res;
@@ -428,22 +350,6 @@ console.log('--- Suite 3: Total Rows = 0 Edge Case & Malformed State Resilience 
     assertEqual(threw, false, `Inspect key "${key}" does not throw on totalRows=0`);
     assertEqual(res.action, 'inspect_noop', `Inspect key "${key}" returns inspect_noop on totalRows=0`);
     assertEqual(inspectCalled, false, `Inspect key "${key}" does NOT call onInspectRow on totalRows=0`);
-  }
-
-  // Triage on totalRows = 0
-  const triageKeys = ['1', '2', '3', '4', '5', 'i', 'r', '0', 'u'];
-  for (const key of triageKeys) {
-    resetZeroTrackers();
-    let res;
-    let threw = false;
-    try {
-      res = dispatchTrackerHotkey(zeroRowsOptions, createMockEvent(key));
-    } catch (e) {
-      threw = true;
-    }
-    assertEqual(threw, false, `Triage key "${key}" does not throw on totalRows=0`);
-    assertEqual(res.action, 'triage_noop', `Triage key "${key}" returns triage_noop on totalRows=0`);
-    assertEqual(triageCalled, false, `Triage key "${key}" does NOT call onTriageStatus on totalRows=0`);
   }
 
   // Negative totalRows resilience (e.g. totalRows = -5)
@@ -468,11 +374,6 @@ console.log('--- Suite 3: Total Rows = 0 Edge Case & Malformed State Resilience 
   const resOobInspect = dispatchTrackerHotkey(outOfBoundsOptions, createMockEvent('Enter'));
   assertEqual(resOobInspect.action, 'inspect_noop', 'Out of bounds activeRowIndex returns inspect_noop');
   assertEqual(inspectCalled, false, 'Out of bounds activeRowIndex does NOT call onInspectRow');
-
-  resetZeroTrackers();
-  const resOobTriage = dispatchTrackerHotkey(outOfBoundsOptions, createMockEvent('1'));
-  assertEqual(resOobTriage.action, 'triage_noop', 'Out of bounds activeRowIndex returns triage_noop');
-  assertEqual(triageCalled, false, 'Out of bounds activeRowIndex does NOT call onTriageStatus');
 
   // Empty options object resilience (testing default parameter fallbacks)
   let threwDefaults = false;
@@ -848,8 +749,6 @@ console.log('--- Suite 8: ApplicationTable Structural & Keyboard Ergonomics Veri
 
   // Verify visual keyboard hints on controls
   assert(content.includes('<kbd>/</kbd>'), 'Search input displays key hint <kbd>/</kbd>');
-  assert(content.includes('<kbd className="bp-keycap" style={{ marginLeft: 4 }}>[</kbd>'), 'Previous page button displays keycap [');
-  assert(content.includes('<kbd className="bp-keycap" style={{ marginLeft: 4 }}>]</kbd>'), 'Next page button displays keycap ]');
 
   // Verify empty filter state handling
   assert(content.includes('No applications found matching your filter'), 'ApplicationTable renders empty filter state message');
