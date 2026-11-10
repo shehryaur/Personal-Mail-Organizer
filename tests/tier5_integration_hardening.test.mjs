@@ -232,27 +232,27 @@ console.log('--- Workflow 1: Triage Session Workflow (100+ Applications & Hotkey
   let isDrawerOpen = false;
   let activeCardId = null;
 
-  // Simulate a rapid triage operator cycling through all 120 applications
-  // Hotkey cycle: 1 -> applied, 2 -> assessment, 3 -> interview, 4 -> offer, 5 -> rejected, i -> interview, r -> rejected
-  const triageSeq = ['1', '2', '3', '4', '5', 'i', 'r'];
+  // Simulate an operator reviewing all 120 applications from the keyboard.
+  // Paging is done with the Previous / Next buttons (the [ ] keys were removed),
+  // and the removed status keys (1–5, i, r) must leave every application untouched.
+  const removedStatusKeys = ['1', '2', '3', '4', '5', 'i', 'r'];
+  const reviewed = new Set();
+  const clickNextPage = () => { currentPage++; selectedIndex = 0; };
   const totalPages = Math.ceil(TOTAL_TRIAGE_APPS / TABLE_PAGE_SIZE);
 
   for (let i = 0; i < TOTAL_TRIAGE_APPS; i++) {
     const pageOfIndex = Math.floor(i / TABLE_PAGE_SIZE);
     const rowInPage = i % TABLE_PAGE_SIZE;
 
-    // Advance page if advancing past row 11
+    // Advance page with the Next button after row 11
     if (pageOfIndex > currentPage) {
-      const pageAdvRes = dispatchTrackerHotkey({
+      const pageKeyRes = dispatchTrackerHotkey({
         activeRowIndex: selectedIndex,
         totalRows: TABLE_PAGE_SIZE,
-        onNextPage: () => {
-          currentPage++;
-          selectedIndex = 0;
-        },
         isDrawerOpen,
       }, createMockKeyEvent(']'));
-      assert(pageAdvRes.handled, `Page advance handled for application ${i}`);
+      assertEqual(pageKeyRes.action, 'unmapped_key', `"]" is not a shortcut (application ${i})`);
+      clickNextPage();
       assertEqual(currentPage, pageOfIndex, `Current page advanced to ${pageOfIndex}`);
       assertEqual(selectedIndex, 0, `Selection reset to row 0 on page advance`);
     }
@@ -272,21 +272,17 @@ console.log('--- Workflow 1: Triage Session Workflow (100+ Applications & Hotkey
       assert(isDrawerOpen, `Drawer opened on page ${currentPage}`);
     }
 
-    // Apply triage status
-    const triageKey = triageSeq[i % triageSeq.length];
+    // A removed status key does nothing to the active application
+    const statusKey = removedStatusKeys[i % removedStatusKeys.length];
     const currentApp = mockApps[i];
-    const triageRes = dispatchTrackerHotkey({
+    const statusRes = dispatchTrackerHotkey({
       activeRowIndex: selectedIndex,
       totalRows: TABLE_PAGE_SIZE,
-      onTriageStatus: (stage) => {
-        overrides[currentApp.id] = stage;
-        mockStorage.setItem(OVERRIDE_KEY, JSON.stringify(overrides));
-      },
       isDrawerOpen,
-    }, createMockKeyEvent(triageKey));
-
-    assert(triageRes.handled, `Triage hotkey [${triageKey}] handled for app ${i}`);
-    assert(Boolean(overrides[currentApp.id]), `Override stored for app ${currentApp.id}`);
+    }, createMockKeyEvent(statusKey));
+    assertEqual(statusRes.action, 'unmapped_key', `Removed status key [${statusKey}] ignored for app ${i}`);
+    assert(!overrides[currentApp.id], `No override stored for app ${currentApp.id}`);
+    reviewed.add(currentApp.id);
 
     // If not last row of page, navigate down with 'j'
     if (rowInPage < TABLE_PAGE_SIZE - 1 && i < TOTAL_TRIAGE_APPS - 1) {
@@ -306,10 +302,11 @@ console.log('--- Workflow 1: Triage Session Workflow (100+ Applications & Hotkey
     }
   }
 
-  assertEqual(Object.keys(overrides).length, TOTAL_TRIAGE_APPS, 'All 120 applications successfully triaged');
+  assertEqual(reviewed.size, TOTAL_TRIAGE_APPS, 'All 120 applications reviewed');
+  assertEqual(Object.keys(overrides).length, 0, 'Keyboard review created no overrides');
   assertEqual(currentPage, totalPages - 1, `Reached final page ${totalPages - 1}`);
 
-  // Test Space key for inspection on active row
+  // Space no longer opens the active row (Enter does)
   let spaceInspected = false;
   dispatchTrackerHotkey({
     activeRowIndex: selectedIndex,
@@ -317,7 +314,7 @@ console.log('--- Workflow 1: Triage Session Workflow (100+ Applications & Hotkey
     onInspectRow: () => { spaceInspected = true; },
     isDrawerOpen: false,
   }, createMockKeyEvent(' '));
-  assert(spaceInspected, 'Space key successfully inspects active row');
+  assert(!spaceInspected, 'Space key no longer inspects the active row');
 
   // Test Escape dismissal while drawer is open
   let drawerDismissed = false;
@@ -353,23 +350,17 @@ console.log('--- Workflow 1: Triage Session Workflow (100+ Applications & Hotkey
   assertEqual(clampDownRes.nextIndex, 11, 'j at row 11 clamps to 11');
   assertEqual(clampedDown, 11, 'onSelectRow receives clamped 11');
 
-  // Home and End key navigation
+  // Home and End are no longer shortcuts
   let jumpIndex = -1;
-  const homeRes = dispatchTrackerHotkey({
-    activeRowIndex: 7,
-    totalRows: 12,
-    onSelectRow: (idx) => { jumpIndex = idx; },
-  }, createMockKeyEvent('Home'));
-  assertEqual(homeRes.nextIndex, 0, 'Home key returns nextIndex 0');
-  assertEqual(jumpIndex, 0, 'Home key sets active row to 0');
-
-  const endRes = dispatchTrackerHotkey({
-    activeRowIndex: 2,
-    totalRows: 12,
-    onSelectRow: (idx) => { jumpIndex = idx; },
-  }, createMockKeyEvent('End'));
-  assertEqual(endRes.nextIndex, 11, 'End key returns nextIndex 11');
-  assertEqual(jumpIndex, 11, 'End key sets active row to 11');
+  for (const key of ['Home', 'End']) {
+    const res = dispatchTrackerHotkey({
+      activeRowIndex: 7,
+      totalRows: 12,
+      onSelectRow: (idx) => { jumpIndex = idx; },
+    }, createMockKeyEvent(key));
+    assertEqual(res.action, 'unmapped_key', `${key} key is not a shortcut`);
+    assertEqual(jumpIndex, -1, `${key} key does not move the selection`);
+  }
 
   // Zero rows edge case
   const emptyRes = dispatchTrackerHotkey({
@@ -447,41 +438,16 @@ console.log('--- Workflow 1: Triage Session Workflow (100+ Applications & Hotkey
   assert(!drawerDismissAttempted, 'Drawer not dismissed while blurring active input');
   assert(escInput.suppressedByInputGuard, 'Escape handled by Input Guard blur logic');
 
-  // 1.5 Triage Rollback and Override Reset via 'u' and '0'
-  let resetAppId = null;
+  // 1.5 The reset keys 'u' and '0' were removed: an override is only reset
+  // from the drawer's Reset button, never by a stray key press
   const testApp = mockApps[5];
   overrides[testApp.id] = 'offer';
-
-  const resetResU = dispatchTrackerHotkey({
-    activeRowIndex: 5,
-    totalRows: 12,
-    onTriageStatus: (stage) => {
-      if (stage === 'reset') {
-        delete overrides[testApp.id];
-        resetAppId = testApp.id;
-      }
-    },
-  }, createMockKeyEvent('u'));
-
-  assertEqual(resetResU.stage, 'reset', 'Hotkey [u] maps to stage reset');
-  assertEqual(resetAppId, testApp.id, 'Reset target matches active app ID');
-  assert(!overrides[testApp.id], 'Override removed from store on rollback');
-
-  // Hotkey '0' alias
-  overrides[testApp.id] = 'rejected';
-  resetAppId = null;
-  const resetRes0 = dispatchTrackerHotkey({
-    activeRowIndex: 5,
-    totalRows: 12,
-    onTriageStatus: (stage) => {
-      if (stage === 'reset') {
-        delete overrides[testApp.id];
-        resetAppId = testApp.id;
-      }
-    },
-  }, createMockKeyEvent('0'));
-  assertEqual(resetRes0.stage, 'reset', 'Hotkey [0] maps to stage reset');
-  assert(!overrides[testApp.id], 'Override removed via hotkey [0]');
+  for (const key of ['u', '0']) {
+    const res = dispatchTrackerHotkey({ activeRowIndex: 5, totalRows: 12 }, createMockKeyEvent(key));
+    assertEqual(res.action, 'unmapped_key', `Hotkey [${key}] is not a shortcut`);
+    assertEqual(overrides[testApp.id], 'offer', `Hotkey [${key}] leaves the override in place`);
+  }
+  delete overrides[testApp.id];
 }
 
 // =============================================================================
