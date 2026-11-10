@@ -203,7 +203,7 @@ describe('Tier 4: Real-World Application Workloads (End-to-End Operational Workf
   // --------------------------------------------------------------------------
   // Workflow 9: Accidental Keystroke Status Correction & Rollback
   // --------------------------------------------------------------------------
-  it('Workflow 9: Accidental keystroke status change rolled back immediately via u hotkey', () => {
+  it('Workflow 9: Mistaken stage change rolled back with the drawer Reset button (u is not a shortcut)', () => {
     const triage = createTriageState(applications);
     const target = applications.find(a => a.company === 'Sable & Co');
     assert.ok(target);
@@ -212,13 +212,17 @@ describe('Tier 4: Real-World Application Workloads (End-to-End Operational Workf
     triage.setStatus(target.id, 'rejected');
     assert.equal(triage.overrides[target.id], 'rejected');
 
-    // Immediate rollback: u
-    dispatchHotkey({
+    // u is no longer a shortcut and leaves the override in place
+    const res = dispatchHotkey({
       activeRowIndex: 0,
       totalRows: 5,
       onTriageStatus: () => { triage.resetStatus(target.id); },
     }, createMockKeyEvent('u'));
+    assert.equal(res.action, 'unmapped_key');
+    assert.equal(triage.hasOverride(target.id), true);
 
+    // Rollback with the drawer's Reset button
+    triage.resetStatus(target.id);
     assert.equal(triage.hasOverride(target.id), false);
   });
 
@@ -269,7 +273,7 @@ describe('Tier 4: Real-World Application Workloads (End-to-End Operational Workf
   // --------------------------------------------------------------------------
   // Workflow 12: Keyboard Power-User High-Throughput Triage
   // --------------------------------------------------------------------------
-  it('Workflow 12: Continuous keyboard-only triage execution without mouse reliance', () => {
+  it('Workflow 12: Continuous keyboard-only review (search, move, open, close) without mouse reliance', () => {
     const triage = createTriageState(applications);
     let activeRowIndex = 0;
     let isDrawerOpen = false;
@@ -288,9 +292,10 @@ describe('Tier 4: Real-World Application Workloads (End-to-End Operational Workf
     dispatchHotkey({ activeRowIndex, totalRows: 10, onInspectRow: () => { isDrawerOpen = true; } }, createMockKeyEvent('Enter'));
     assert.equal(isDrawerOpen, true);
 
-    // 5. Triage to Assessment: 2
-    dispatchHotkey({ activeRowIndex, totalRows: 10, isDrawerOpen, onTriageStatus: (s) => { triage.setStatus('app-target', s); } }, createMockKeyEvent('2'));
-    assert.equal(triage.overrides['app-target'], 'assessment');
+    // 5. Status keys were removed: 2 changes nothing (stages change only by clicking in the drawer)
+    const statusRes = dispatchHotkey({ activeRowIndex, totalRows: 10, isDrawerOpen, onTriageStatus: (s) => { triage.setStatus('app-target', s); } }, createMockKeyEvent('2'));
+    assert.equal(statusRes.action, 'unmapped_key');
+    assert.equal(triage.hasOverride('app-target'), false);
 
     // 6. Dismiss drawer: Escape
     dispatchHotkey({ isDrawerOpen, onDismiss: () => { isDrawerOpen = false; } }, createMockKeyEvent('Escape'));
